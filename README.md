@@ -153,6 +153,7 @@ The Compose service is health checked and publishes PostgreSQL only on `127.0.0.
 | `CONTENT_REVERIFY` | Set to `true` only when an existing corpus was deliberately re-reviewed | Unset |
 | `CONTENT_VERIFIED_BY` | Accountable editorial reviewer or team | `Codefyhub Editorial Team` |
 | `NEXT_PUBLIC_SITE_URL` | Canonical public URL; leave unset for local-only use | `https://guide.example.com` |
+| `HSTS_PRELOAD` | Opt in to HSTS subdomain coverage and browser preload only after every subdomain is HTTPS-ready | Unset |
 
 Never commit `.env.local` or reuse its development credentials in a shared environment.
 

@@ -8,9 +8,7 @@ dist/
 build/
 *.sst
 *.tsbuildinfo
-.env
-.env.local
-.env.*.local
+.env*
 *.log
 .DS_Store
 postgres-data/
@@ -18,4 +16,3 @@ postgres-data/
 /.local/
 
 .vercel
-.env*

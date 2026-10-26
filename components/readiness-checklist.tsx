@@ -40,7 +40,7 @@ export function ReadinessChecklist() {
   const percentage = Math.round((checked.length / items.length) * 100);
   return (
     <>
-      <div className="progress-bar" aria-label={`${percentage}% complete`}><div className="progress-fill" style={{ width: `${percentage}%` }} /></div>
+      <div className="progress-bar" role="progressbar" aria-label="Readiness review completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage}><div className="progress-fill" style={{ width: `${percentage}%` }} /></div>
       <div className="checklist-summary"><div className="progress-copy">{checked.length} of {items.length} controls reviewed · {percentage}%</div><button className="button checklist-print" onClick={printChecklist} type="button">Print / export PDF</button></div>
       <div className="checklist">
         {items.map(([title, description], index) => (

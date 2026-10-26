@@ -17,6 +17,11 @@ export function MarkdownArticle({ body }: { body: string }) {
         components={{
           h2: ({ children }) => <h2 id={headingId(children)}>{children}</h2>,
           h3: ({ children }) => <h3 id={headingId(children)}>{children}</h3>,
+          table: ({ children }) => (
+            <div className="table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}>
+              <table>{children}</table>
+            </div>
+          ),
           pre: ({ children }) => {
             const child = React.Children.only(children) as React.ReactElement<{ className?: string; children?: React.ReactNode }>;
             const language = child.props.className?.replace("language-", "");

@@ -4,7 +4,9 @@ const port = process.env.CI ? 3100 : 3000;
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: process.env.CI ? 2 : 1,
+  timeout: 60_000,
   retries: process.env.CI ? 2 : 0,
   use: { baseURL: `http://127.0.0.1:${port}`, trace: "on-first-retry" },
   projects: [
