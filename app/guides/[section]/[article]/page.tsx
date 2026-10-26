@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { MarkdownArticle, headingId } from "@/components/markdown-article";
 import { ArticleProgress } from "@/components/article-progress";
+import { RaidPicker } from "@/components/raid-picker";
+import { VpnPicker } from "@/components/vpn-picker";
+import { RemoteAccessPicker } from "@/components/remote-access-picker";
 
 function headings(body: string) {
   return [...body.matchAll(/^##\s+(.+)$/gm)].map((match) => ({ label: match[1], id: headingId(match[1]) }));
@@ -38,6 +41,34 @@ export default async function ArticlePage({ params }: { params: Promise<{ sectio
           <div style={{ marginTop: 22 }}><ArticleProgress articleId={article.id} /></div>
         </header>
         <MarkdownArticle body={article.body} />
+        {article.slug === "choose-raid" && (
+          <section className="decision-tools">
+            <h2>Decision Tools</h2>
+            <RaidPicker />
+          </section>
+        )}
+        {article.slug === "connect-everywhere" && (
+          <section className="decision-tools">
+            <h2>Decision Tools</h2>
+            <p className="decision-tool-intro">Use these interactive tools to choose the right tool for your situation:</p>
+            <VpnPicker />
+            <RemoteAccessPicker />
+          </section>
+        )}
+        {article.slug === "beginner-remote-access" && (
+          <section className="decision-tools">
+            <h2>Decision Tools</h2>
+            <p className="decision-tool-intro">Need help choosing a remote access tool? Answer a few questions:</p>
+            <RemoteAccessPicker />
+          </section>
+        )}
+        {article.slug === "wireguard" && (
+          <section className="decision-tools">
+            <h2>Decision Tools</h2>
+            <p className="decision-tool-intro">Choose the right VPN protocol for your network:</p>
+            <VpnPicker />
+          </section>
+        )}
         <section className="sources">
           <h2>Official references</h2>
           <ul>{article.articleSources.map(({ source }) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.organization}: {source.title}</a></li>)}</ul>
