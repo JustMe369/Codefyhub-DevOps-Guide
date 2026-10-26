@@ -2,6 +2,9 @@ node_modules/
 .next/
 out/
 coverage/
+dist/
+build/
+*.sst
 *.tsbuildinfo
 .env
 .env.local
