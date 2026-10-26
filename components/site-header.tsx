@@ -15,6 +15,12 @@ export function SiteHeader() {
     const timer = window.setTimeout(() => setTheme(preferred), 0);
     return () => window.clearTimeout(timer);
   }, []);
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKeyDown(event: KeyboardEvent) { if (event.key === "Escape") setMenuOpen(false); }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
   function toggleTheme() {
     const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
     setTheme(next); localStorage.setItem("devops-guide:theme", next); document.documentElement.dataset.theme = next;
@@ -27,8 +33,8 @@ export function SiteHeader() {
           <span className="brand-mark"><Image src="/brand/Codefyhub-DevOps-g.jpg" alt="Codefyhub-DevOps logo" width={31} height={31} priority /></span>
           <span>Codefyhub-DevOps Guide<small>Infrastructure operations</small></span>
         </Link>
-        <button className="header-icon menu-toggle" type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
-        <nav className={`main-nav${menuOpen ? " open" : ""}`} aria-label="Primary navigation">
+        <button className="header-icon menu-toggle" type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-controls="primary-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
+        <nav id="primary-navigation" className={`main-nav${menuOpen ? " open" : ""}`} aria-label="Primary navigation">
           <Link onClick={closeMenu} href="/guides/start-here">Guides</Link>
           <Link onClick={closeMenu} href="/exam">Exam</Link>
           <Link onClick={closeMenu} href="/glossary">Glossary</Link>

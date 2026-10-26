@@ -26,7 +26,7 @@ The product is intentionally documentation-first. It does not execute infrastruc
 | Capability | Current state |
 |---|---|
 | Guide sections | 12 published sections |
-| Articles | 58 focused articles |
+| Articles | 61 focused articles |
 | Official source records | 29 |
 | Glossary terms | 40 |
 | Readiness controls | 18 browser-local checks |

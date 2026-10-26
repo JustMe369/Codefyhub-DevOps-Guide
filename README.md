@@ -12,7 +12,7 @@
 
 Codefyhub-DevOps Guide is a PostgreSQL-backed technical knowledge system for engineers designing, securing, and operating modern infrastructure. It favors decision guidance, validation, troubleshooting, and recovery over unexplained command lists.
 
-The current edition includes 12 disciplines, 58 focused articles, 29 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
+The current edition includes 12 disciplines, 61 focused articles, 29 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
 
 Open the running guide at [http://localhost:3000](http://localhost:3000).
 
@@ -151,6 +151,7 @@ The Compose service is health checked and publishes PostgreSQL only on `127.0.0.
 | `DATABASE_URL` | Prisma connection string | Must match the values above |
 | `CONTENT_VERIFIED_AT` | Explicit date of the completed editorial review | `2026-10-26` |
 | `CONTENT_REVERIFY` | Set to `true` only when an existing corpus was deliberately re-reviewed | Unset |
+| `CONTENT_VERIFIED_BY` | Accountable editorial reviewer or team | `Codefyhub Editorial Team` |
 | `NEXT_PUBLIC_SITE_URL` | Canonical public URL; leave unset for local-only use | `https://guide.example.com` |
 
 Never commit `.env.local` or reuse its development credentials in a shared environment.

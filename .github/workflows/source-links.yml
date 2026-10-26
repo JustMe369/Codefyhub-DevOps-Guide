@@ -1,0 +1,33 @@
+name: source-links
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.2-alpine
+        env:
+          POSTGRES_USER: devops_guide
+          POSTGRES_PASSWORD: test_password_only
+          POSTGRES_DB: devops_guide
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U devops_guide -d devops_guide"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://devops_guide:test_password_only@127.0.0.1:5432/devops_guide?schema=public
+      CONTENT_VERIFIED_AT: 2026-10-26
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:deploy
+      - run: npm run db:seed
+      - run: npm run content:links

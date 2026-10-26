@@ -15,8 +15,10 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     SELECT * FROM (
     SELECT a.id, a.title, a.description, a.body, a.slug AS "articleSlug",
       s.slug AS "sectionSlug", s.title AS "sectionTitle",
-      ts_rank(
-        to_tsvector('english', a.title || ' ' || a.description || ' ' || a.body),
+      ts_rank_cd(
+        setweight(to_tsvector('english', a.title), 'A') ||
+        setweight(to_tsvector('english', a.description), 'B') ||
+        setweight(to_tsvector('english', a.body), 'C'),
         websearch_to_tsquery('english', ${query})
       ) AS rank, 'article'::text AS kind
     FROM "Article" a
@@ -28,8 +30,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     UNION ALL
     SELECT g.id, g.term AS title, g.definition AS description, g.definition AS body,
       '' AS "articleSlug", '' AS "sectionSlug", 'Glossary' AS "sectionTitle",
-      ts_rank(
-        to_tsvector('english', g.term || ' ' || g.definition),
+      ts_rank_cd(
+        setweight(to_tsvector('english', g.term), 'A') || setweight(to_tsvector('english', g.definition), 'B'),
         websearch_to_tsquery('english', ${query})
       ) AS rank, 'glossary'::text AS kind
     FROM "GlossaryTerm" g
@@ -50,7 +52,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         {query.length > 0 && query.length < 2 && <p>Enter at least two characters.</p>}
         {query.length >= 2 && results.length === 0 && <p>No exact matches. Try a broader technical term.</p>}
         {results.map((result) => (
-          <Link className="search-result" href={result.kind === "glossary" ? "/glossary" : `/guides/${result.sectionSlug}/${result.articleSlug}`} key={result.id}>
+          <Link className="search-result" href={result.kind === "glossary" ? `/glossary#${result.id}` : `/guides/${result.sectionSlug}/${result.articleSlug}`} key={result.id}>
             <div className="eyebrow">{result.sectionTitle}</div>
             <h2>{result.title}</h2>
             <p>{result.description || stripMarkdown(result.body).slice(0, 170)}</p>

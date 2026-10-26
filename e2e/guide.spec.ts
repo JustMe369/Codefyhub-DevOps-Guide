@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 test("search, lesson navigation, and readiness export are available", async ({ page }) => {
   await page.goto("/");
@@ -44,5 +45,13 @@ test("every URL published in the sitemap responds successfully", async ({ reques
     const batch = urls.slice(index, index + 8);
     const responses = await Promise.all(batch.map(async (url) => ({ url, response: await request.get(url) })));
     for (const { url, response } of responses) expect(response.ok(), `${url} returned ${response.status()}`).toBe(true);
+  }
+});
+
+test("core pages have no serious accessibility violations", async ({ page }) => {
+  for (const path of ["/", "/guides/start-here/reference-architecture", "/exam", "/checklist"]) {
+    await page.goto(path);
+    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? "")), `${path} accessibility violations`).toEqual([]);
   }
 });

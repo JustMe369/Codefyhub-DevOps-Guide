@@ -53,6 +53,7 @@ export default async function ArticlePage({ params }: Props) {
             <span><Gauge size={14} />{article.difficulty.toLowerCase()}</span>
             <span><CalendarCheck size={14} />Verified {formatDate(article.lastVerifiedAt)}</span>
           </div>
+          <p className="verification-note">Reviewed by {article.verifiedBy} · {article.verificationMethod} · Compatibility: {article.testedVersions}</p>
           <div style={{ marginTop: 22 }}><ArticleProgress articleId={article.id} /></div>
         </header>
         <MarkdownArticle body={article.body} />

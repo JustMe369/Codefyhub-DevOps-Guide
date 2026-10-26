@@ -24,16 +24,19 @@ try {
 
   for (const article of articles) {
     const words = article.body.trim().split(/\s+/).length;
+    const minimumWords = article.difficulty === "ADVANCED" ? 200 : article.difficulty === "INTERMEDIATE" ? 160 : 140;
     const expectedMinutes = Math.max(2, Math.ceil(words / 180));
     if (!article.body.includes("## ")) errors.push(`${article.section}/${article.slug}: missing H2 structure`);
     if (article._count.articleSources === 0) errors.push(`${article.section}/${article.slug}: no official source mapping`);
     if (article._count.versions === 0) errors.push(`${article.section}/${article.slug}: no revision snapshot`);
+    if (!article.verifiedBy.trim() || !article.verificationMethod.trim() || !article.testedVersions.trim()) errors.push(`${article.section}/${article.slug}: incomplete editorial verification evidence`);
     if (article.articleSources.some((item) => !item.claimScope?.trim())) errors.push(`${article.section}/${article.slug}: source mapping lacks claim scope`);
     if (article.articleSources.some((item) => !item.source.url.startsWith("https://"))) errors.push(`${article.section}/${article.slug}: source URL must use HTTPS`);
     const headingIds = [...article.body.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1].toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-"));
     if (new Set(headingIds).size !== headingIds.length) errors.push(`${article.section}/${article.slug}: duplicate H2 anchor`);
     if (article.readingMinutes !== expectedMinutes) warnings.push(`${article.section}/${article.slug}: reading time should be ${expectedMinutes}, stored ${article.readingMinutes}`);
-    if (words < 140) warnings.push(`${article.section}/${article.slug}: only ${words} words`);
+    if (words < minimumWords) errors.push(`${article.section}/${article.slug}: ${article.difficulty.toLowerCase()} article has ${words} words; minimum is ${minimumWords}`);
+    if (article.difficulty === "ADVANCED" && headingIds.length < 3) errors.push(`${article.section}/${article.slug}: advanced article needs at least three operational H2 sections`);
     for (const [needle, reason] of banned) if (article.body.includes(needle)) errors.push(`${article.section}/${article.slug}: ${reason}`);
   }
 

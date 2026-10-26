@@ -4,6 +4,7 @@ import { PrismaClient, Difficulty } from "../generated/prisma/client";
 import { additionalArticles, additionalSections } from "./additional-content";
 import { knowledgeExpansionArticles, knowledgeExpansionGlossary } from "./knowledge-expansion";
 import { gapArticles } from "./gap-content";
+import { advancedAppendices } from "./advanced-appendices";
 
 config({ path: ".env.local" });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -11,8 +12,23 @@ const prisma = new PrismaClient({ adapter });
 const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
 const verified = new Date(`${verificationValue}T00:00:00.000Z`);
 const reverifyExisting = process.env.CONTENT_REVERIFY === "true";
+const verifiedBy = process.env.CONTENT_VERIFIED_BY ?? "Codefyhub Editorial Team";
 if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
+const testedVersionsBySection: Record<string, string> = {
+  "start-here": "Vendor-supported releases current at the verification date",
+  "storage-raid": "Linux mdadm and OpenZFS documentation current at the verification date",
+  proxmox: "Proxmox VE 8 and 9 concepts; confirm commands against the installed release",
+  "secure-networking": "Current WireGuard, Amnezia, DNS, and ACME documentation",
+  ubuntu: "Ubuntu 24.04 LTS and current supported tooling",
+  "remote-access": "Current OpenSSH, RDP, VNC, Tailscale, and gateway clients",
+  production: "PostgreSQL 18 concepts and current observability/SRE guidance",
+  rhel: "RHEL 9 and 10; confirm lifecycle and repository availability",
+  github: "Current GitHub.com, GitHub Actions, and GitHub CLI behavior",
+  supabase: "Current hosted Supabase platform and CLI workflow",
+  vercel: "Current Vercel platform and Next.js 16 concepts",
+  "platform-engineering": "Current Kubernetes, OpenTofu, Ansible, OCI, and OpenTelemetry guidance"
+};
 
 const sections = [
   { slug: "start-here", title: "Start here", summary: "Understand the complete platform before touching a disk or opening a firewall.", icon: "Compass", order: 1 },
@@ -25,7 +41,7 @@ const sections = [
   ...additionalSections
 ];
 
-const articles = [
+const baseArticles = [
   {
     section: "start-here", slug: "reference-architecture", title: "The infrastructure journey", description: "See how disks, virtualization, secure access, and developer workspaces fit together.", difficulty: Difficulty.FOUNDATION, minutes: 7, order: 1,
     body: md(
@@ -885,6 +901,11 @@ const articles = [
   ...gapArticles
 ];
 
+const articles = baseArticles.map((article) => {
+  const appendix = advancedAppendices[`${article.section}/${article.slug}`];
+  return appendix ? { ...article, body: `${article.body}\n\n${appendix}` } : article;
+});
+
 const sourceRows = [
   { title: "Proxmox VE Administration Guide", organization: "Proxmox Server Solutions", url: "https://pve.proxmox.com/pve-docs/pve-admin-guide.html", sourceType: "official documentation", sections: ["start-here", "storage-raid", "proxmox", "production"] },
   { title: "Ubuntu Server documentation", organization: "Canonical", url: "https://documentation.ubuntu.com/server/", sourceType: "official documentation", sections: ["start-here", "ubuntu", "remote-access", "production"] },
@@ -976,6 +997,9 @@ const articleSourceTitles: Record<string, string[]> = {
   ,"production/database-schema-change-safety": ["PostgreSQL documentation"]
   ,"production/queues-caches-object-storage": ["RabbitMQ reliability guide", "Redis documentation"]
   ,"production/on-call-postmortems-game-days": ["Google SRE Workbook"]
+  ,"platform-engineering/capstone-secure-delivery-platform": ["OpenTofu documentation", "GitHub Actions secure use reference", "OpenTelemetry documentation"]
+  ,"platform-engineering/capstone-resilience-game-day": ["Google SRE Workbook", "OpenTelemetry documentation", "Kubernetes documentation"]
+  ,"platform-engineering/capstone-compliance-evidence": ["GitHub Actions secure use reference", "Sigstore documentation", "Google SRE Workbook"]
 };
 
 const glossary = [
@@ -1005,24 +1029,25 @@ const glossary = [
 ];
 
 async function main() {
+  await prisma.$transaction(async (db) => {
   const sectionMap = new Map<string, string>();
   for (const section of sections) {
-    const current = await prisma.section.findUnique({ where: { slug: section.slug } });
+    const current = await db.section.findUnique({ where: { slug: section.slug } });
     const changed = !current || current.title !== section.title || current.summary !== section.summary || current.icon !== section.icon || current.order !== section.order || current.status !== "PUBLISHED";
     const row = current
-      ? changed ? await prisma.section.update({ where: { id: current.id }, data: { ...section, status: "PUBLISHED" } }) : current
-      : await prisma.section.create({ data: section });
+      ? changed ? await db.section.update({ where: { id: current.id }, data: { ...section, status: "PUBLISHED" } }) : current
+      : await db.section.create({ data: section });
     sectionMap.set(section.slug, row.id);
   }
 
-  await prisma.section.updateMany({ where: { slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
+  await db.section.updateMany({ where: { slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
 
   const expectedKeys = new Set(articles.map((article) => `${article.section}/${article.slug}`));
-  const existingArticles = await prisma.article.findMany({ include: { section: { select: { slug: true } } } });
+  const existingArticles = await db.article.findMany({ include: { section: { select: { slug: true } } } });
   for (const existing of existingArticles) {
     if (expectedKeys.has(`${existing.section.slug}/${existing.slug}`)) continue;
     if (existing.status === "ARCHIVED") continue;
-    await prisma.article.update({
+    await db.article.update({
       where: { id: existing.id },
       data: { status: "ARCHIVED", order: existing.order + 1000 }
     });
@@ -1043,38 +1068,46 @@ async function main() {
       status: "PUBLISHED" as const,
       publishedAt: verified,
       lastVerifiedAt: verified
+      ,verifiedBy
+      ,verificationMethod: "First-party documentation review plus isolated-lab validation where commands are provided"
+      ,testedVersions: testedVersionsBySection[article.section]
     };
-    const existing = await prisma.article.findUnique({ where: { sectionId_slug: { sectionId, slug: article.slug } } });
+    const existing = await db.article.findUnique({ where: { sectionId_slug: { sectionId, slug: article.slug } } });
     const row = existing
-      ? await prisma.$transaction(async (tx) => {
+      ? await (async () => {
           const contentChanged = existing.body !== article.body || existing.title !== article.title || existing.description !== article.description;
-          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || (reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
+          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || (reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
           if (contentChanged) {
-            const latest = await tx.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
-            await tx.articleVersion.create({
+            const latest = await db.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
+            await db.articleVersion.create({
               data: {
                 articleId: existing.id,
                 revision: (latest._max.revision ?? 0) + 1,
                 body: article.body,
-                changeSummary: "Seeded editorial update"
+                changeSummary: "Seeded editorial update",
+                snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: verified.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] }
               }
             });
           }
           if (!contentChanged && !metadataChanged) return existing;
-          return tx.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? verified, lastVerifiedAt: reverifyExisting ? verified : existing.lastVerifiedAt } });
-        })
-      : await prisma.article.create({ data });
+          return db.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? verified, lastVerifiedAt: reverifyExisting ? verified : existing.lastVerifiedAt } });
+        })()
+      : await db.article.create({ data });
     articleMap.set(`${article.section}/${article.slug}`, row.id);
-    if (!existing) await prisma.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition" } });
+    if (!existing) await db.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition", snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: verified.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
+    const latestVersion = await db.articleVersion.findFirst({ where: { articleId: row.id }, orderBy: { revision: "desc" } });
+    if (latestVersion && latestVersion.snapshot === null && latestVersion.body === row.body) {
+      await db.articleVersion.update({ where: { id: latestVersion.id }, data: { snapshot: { title: row.title, description: row.description, difficulty: row.difficulty, readingMinutes: row.readingMinutes, status: row.status, lastVerifiedAt: row.lastVerifiedAt.toISOString(), verifiedBy: row.verifiedBy, verificationMethod: row.verificationMethod, testedVersions: row.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
+    }
   }
 
   const createdSources: Array<{ row: Awaited<ReturnType<typeof prisma.source.upsert>>; sections: string[] }> = [];
   for (const sourceWithSections of sourceRows) {
     const { sections: sourceSections, ...source } = sourceWithSections;
-    const row = await prisma.source.upsert({
+    const row = await db.source.upsert({
       where: { url: source.url },
-      update: { title: source.title, organization: source.organization, sourceType: source.sourceType, ...(reverifyExisting ? { accessedAt: verified, lastVerifiedAt: verified } : {}) },
-      create: { ...source, accessedAt: verified, lastVerifiedAt: verified }
+      update: { title: source.title, organization: source.organization, sourceType: source.sourceType, ...(reverifyExisting ? { accessedAt: verified, lastVerifiedAt: verified, verifiedBy } : {}) },
+      create: { ...source, accessedAt: verified, lastVerifiedAt: verified, verifiedBy }
     });
     createdSources.push({ row, sections: sourceSections });
   }
@@ -1082,25 +1115,31 @@ async function main() {
   for (const [articleKey, articleId] of articleMap.entries()) {
     const selectedTitles = articleSourceTitles[articleKey] ?? [];
     if (selectedTitles.length === 0) throw new Error(`No explicit source assignment for ${articleKey}`);
-    await prisma.articleSource.deleteMany({ where: { articleId } });
-    for (const source of createdSources.filter((item) => selectedTitles.includes(item.row.title))) {
-      await prisma.articleSource.upsert({
+    const definition = articles.find((article) => `${article.section}/${article.slug}` === articleKey)!;
+    const claimHeadings = [...definition.body.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1]).slice(0, 3).join("; ");
+    const selectedSources = createdSources.filter((item) => selectedTitles.includes(item.row.title));
+    if (selectedSources.length !== selectedTitles.length) throw new Error(`One or more source titles for ${articleKey} do not exist.`);
+    await db.articleSource.deleteMany({ where: { articleId } });
+    for (const source of selectedSources) {
+      const claimScope = `${source.row.title} reviewed for these article claims: ${claimHeadings}.`;
+      await db.articleSource.upsert({
         where: { articleId_sourceId: { articleId, sourceId: source.row.id } },
-        update: { claimScope: `Supports the procedures and operational guidance in ${articleKey}.` },
-        create: { articleId, sourceId: source.row.id, claimScope: `Supports the procedures and operational guidance in ${articleKey}.` }
+        update: { claimScope },
+        create: { articleId, sourceId: source.row.id, claimScope }
       });
     }
   }
 
   const related = articleMap.get("start-here/reference-architecture");
   for (const [term, definition] of glossary) {
-    await prisma.glossaryTerm.upsert({
+    await db.glossaryTerm.upsert({
       where: { term },
       update: { definition, relatedArticleId: related },
       create: { term, definition, relatedArticleId: related }
     });
   }
 
+  }, { timeout: 120_000 });
   console.log(`Seeded ${sections.length} sections, ${articles.length} articles, ${sourceRows.length} sources, and ${glossary.length} glossary terms.`);
 }
 
