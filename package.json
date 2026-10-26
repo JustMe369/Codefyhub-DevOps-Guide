@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma migrate deploy && prisma generate && tsx prisma/seed.ts && next build",
     "deploy:db": "prisma migrate deploy",
     "deploy:content": "tsx prisma/seed.ts",
     "content:check": "tsx scripts/check-content.ts",
