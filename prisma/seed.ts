@@ -6,7 +6,9 @@ import { additionalArticles, additionalSections } from "./additional-content";
 config({ path: ".env.local" });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
-const verified = new Date("2026-10-26T00:00:00.000Z");
+const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
+const verified = new Date(`${verificationValue}T00:00:00.000Z`);
+if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
 
 const sections = [
@@ -399,17 +401,26 @@ async function main() {
       publishedAt: verified,
       lastVerifiedAt: verified
     };
-    const row = await prisma.article.upsert({
-      where: { sectionId_slug: { sectionId, slug: article.slug } },
-      update: data,
-      create: data
-    });
+    const existing = await prisma.article.findUnique({ where: { sectionId_slug: { sectionId, slug: article.slug } } });
+    const row = existing
+      ? await prisma.$transaction(async (tx) => {
+          const contentChanged = existing.body !== article.body || existing.title !== article.title || existing.description !== article.description;
+          if (contentChanged) {
+            const latest = await tx.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
+            await tx.articleVersion.create({
+              data: {
+                articleId: existing.id,
+                revision: (latest._max.revision ?? 0) + 1,
+                body: article.body,
+                changeSummary: "Seeded editorial update"
+              }
+            });
+          }
+          return tx.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? verified } });
+        })
+      : await prisma.article.create({ data });
     articleMap.set(`${article.section}/${article.slug}`, row.id);
-    await prisma.articleVersion.upsert({
-      where: { articleId_revision: { articleId: row.id, revision: 1 } },
-      update: { body: article.body, changeSummary: "Initial consolidated edition" },
-      create: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition" }
-    });
+    if (!existing) await prisma.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition" } });
   }
 
   const createdSources: Array<{ row: Awaited<ReturnType<typeof prisma.source.upsert>>; sections: string[] }> = [];
@@ -417,20 +428,19 @@ async function main() {
     const { sections: sourceSections, ...source } = sourceWithSections;
     const row = await prisma.source.upsert({
       where: { url: source.url },
-      update: { ...source, lastVerifiedAt: verified },
-      create: { ...source, lastVerifiedAt: verified }
+      update: { ...source, accessedAt: verified, lastVerifiedAt: verified },
+      create: { ...source, accessedAt: verified, lastVerifiedAt: verified }
     });
     createdSources.push({ row, sections: sourceSections });
   }
 
-  await prisma.articleSource.deleteMany();
   for (const [articleKey, articleId] of articleMap.entries()) {
     const sectionSlug = articleKey.split("/")[0];
     for (const source of createdSources.filter((item) => item.sections.includes(sectionSlug))) {
       await prisma.articleSource.upsert({
         where: { articleId_sourceId: { articleId, sourceId: source.row.id } },
-        update: {},
-        create: { articleId, sourceId: source.row.id }
+        update: { claimScope: `Reviewed reference for ${articleKey}` },
+        create: { articleId, sourceId: source.row.id, claimScope: `Reviewed reference for ${articleKey}` }
       });
     }
   }

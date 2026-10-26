@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, DatabaseBackup, Gauge, ShieldCheck, Terminal, Server, HardDrive, Network, BadgeCheck, Compass, Boxes, GitBranch, Database, Cloud, Workflow } from "lucide-react";
+import { ArrowRight, DatabaseBackup, Gauge, ShieldCheck, Terminal, Server, HardDrive, Network, BadgeCheck, Compass, Boxes, GitBranch, Database, Cloud, Workflow, BrainCircuit } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 const iconMap = { Compass, HardDrive, Server, Shield: ShieldCheck, Terminal, Network, BadgeCheck, Boxes, GitBranch, Database, Cloud, Workflow };
@@ -21,6 +21,7 @@ export default async function HomePage() {
             <p className="hero-copy">A practical field guide from physical disks to governed delivery platforms. Every layer is explained as a decision, a procedure, and a validation—not a collection of commands to paste blindly.</p>
             <div className="hero-actions">
               <Link className="button button-primary" href="/guides/start-here">Start the guide <ArrowRight size={16} /></Link>
+              <Link className="button" href="/exam"><BrainCircuit size={16} /> Test your knowledge</Link>
               <Link className="button" href="/checklist">Review production readiness</Link>
             </div>
           </div>

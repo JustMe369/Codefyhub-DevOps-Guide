@@ -30,6 +30,7 @@ The product is intentionally documentation-first. It does not execute infrastruc
 | Official source records | 16 |
 | Glossary terms | 22 |
 | Readiness controls | 18 browser-local checks |
+| Assessment studio | 36 questions, 12 domains, 4 formats, Practice and Exam modes |
 | Search | PostgreSQL full-text search across articles and glossary |
 | Content format | Sanitized Markdown stored in PostgreSQL |
 | Database | PostgreSQL 18, local port `5433` |
@@ -43,8 +44,8 @@ The product is intentionally documentation-first. It does not execute infrastruc
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Browser                                                             │
 │                                                                     │
-│ Responsive guide UI · Search · Glossary · Checklist · Print view    │
-│ localStorage: article completion and readiness state                 │
+│ Guide UI · Search · Glossary · Checklist · Assessment · Print view  │
+│ localStorage: completion, readiness, and assessment history          │
 └──────────────────────────────┬──────────────────────────────────────┘
                                │ HTTP
                                ▼
@@ -52,7 +53,7 @@ The product is intentionally documentation-first. It does not execute infrastruc
 │ Next.js application                                                 │
 │                                                                     │
 │ Server Components: guide, article, search, glossary, sitemap        │
-│ Client Components: copy buttons, completion, readiness checklist    │
+│ Client Components: copy, completion, readiness, assessment engine   │
 │ Route Handler: /api/health                                          │
 │ Markdown pipeline: remark-gfm → rehype-sanitize → React              │
 └──────────────────────────────┬──────────────────────────────────────┘
@@ -72,7 +73,7 @@ The product is intentionally documentation-first. It does not execute infrastruc
 - Server Components read editorial data directly through Prisma.
 - Search input is validated with Zod and passed to parameterized Prisma SQL.
 - Database Markdown is sanitized before rendering; raw executable MDX is not supported.
-- Personal reading state remains in the browser and is not transmitted to the server.
+- Personal reading, readiness, and assessment state remains in the browser and is not transmitted to the server.
 - The health endpoint reports only application/database availability and never exposes credentials.
 
 ## 5. Technology decisions
@@ -126,6 +127,7 @@ Generated directories such as `.next/`, `generated/`, `node_modules/`, and `.loc
 | `app/search/page.tsx` | Validated PostgreSQL search across articles and glossary |
 | `app/glossary/page.tsx` | Alphabetical infrastructure glossary |
 | `app/checklist/page.tsx` | Production-readiness review surface |
+| `app/exam/page.tsx` | Configurable knowledge-assessment studio and metadata |
 | `app/api/health/route.ts` | Web process and database connectivity health check |
 | `app/not-found.tsx` | Branded 404 and recovery links |
 | `app/sitemap.ts` | Generated local sitemap metadata |
@@ -142,6 +144,7 @@ Generated directories such as `.next/`, `generated/`, `node_modules/`, and `.loc
 | `components/code-block.tsx` | Language label and clipboard copy interaction |
 | `components/article-progress.tsx` | Browser-local article completion state |
 | `components/readiness-checklist.tsx` | Browser-local readiness controls and progress meter |
+| `components/exam-engine.tsx` | Topic and format selection, practice/exam sessions, confidence tracking, grading, review, and local history |
 
 ### Data and domain files
 
@@ -155,6 +158,8 @@ Generated directories such as `.next/`, `generated/`, `node_modules/`, and `.loc
 | `lib/prisma.ts` | Singleton Prisma client and PostgreSQL driver adapter |
 | `lib/utils.ts` | Date and safe search-excerpt helpers |
 | `lib/utils.test.ts` | Unit tests for Markdown excerpt behavior |
+| `lib/exam-data.ts` | Typed assessment domains, question bank, explanations, and exact-answer grading |
+| `lib/exam-data.test.ts` | Coverage, identifier, answer-index, and grading tests for the assessment bank |
 
 ### Operations
 
@@ -313,11 +318,11 @@ Recovery order:
 | Test layer | Current or planned verification |
 |---|---|
 | Static analysis | ESLint and strict TypeScript |
-| Unit | Utility behavior with Vitest |
+| Unit | Utility behavior and assessment-bank integrity with Vitest |
 | Database | Migration from empty DB and seed replay |
 | Build | Optimized Next.js production build |
-| HTTP smoke | Homepage, platform sections, search, glossary, checklist, and health |
-| Browser | Responsive reading layout, mobile navigation, search results, completion, checklist, and console errors |
+| HTTP smoke | Homepage, platform sections, search, glossary, checklist, assessment, and health |
+| Browser | Responsive reading layout, navigation, search, completion, checklist, assessment configuration, feedback, results, review, and console errors |
 | Accessibility | Keyboard navigation, focus visibility, semantic landmarks, reduced motion, contrast, and print output |
 | Content | First-party source review, last-verified date, placeholder safety, and destructive-command warnings |
 
@@ -345,6 +350,7 @@ Editorial standards:
 - Twelve guide sections and full-text search.
 - Sanitized Markdown rendering and copyable commands.
 - Glossary, completion tracking, and readiness checklist.
+- Professional assessment studio with 36 curated questions, configurable domains and formats, Practice and Exam modes, confidence calibration, skill profiles, review explanations, and saved history.
 - Local database startup, health checks, tests, and production build.
 
 ### Phase 2 — Editorial operations
@@ -358,7 +364,7 @@ Editorial standards:
 
 ### Phase 3 — Engineering assurance
 
-- Add Playwright end-to-end tests for search, progress, copy, and checklist persistence.
+- Add Playwright end-to-end tests for search, progress, copy, checklist persistence, and assessment sessions.
 - Add automated accessibility testing with axe.
 - Add migration tests in CI using disposable PostgreSQL.
 - Add Lighthouse budgets and bundle-size monitoring.

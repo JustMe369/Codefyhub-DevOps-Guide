@@ -27,7 +27,7 @@ export function ReadinessChecklist() {
   const key = "devops-guide:readiness";
   const [checked, setChecked] = useState<number[]>([]);
   useEffect(() => {
-    const timer = window.setTimeout(() => setChecked(JSON.parse(localStorage.getItem(key) || "[]")), 0);
+    const timer = window.setTimeout(() => { try { setChecked(JSON.parse(localStorage.getItem(key) || "[]")); } catch { setChecked([]); } }, 0);
     return () => window.clearTimeout(timer);
   }, []);
   function toggle(index: number) {
@@ -35,11 +35,12 @@ export function ReadinessChecklist() {
     setChecked(next);
     localStorage.setItem(key, JSON.stringify(next));
   }
+  function printChecklist() { window.print(); }
   const percentage = Math.round((checked.length / items.length) * 100);
   return (
     <>
       <div className="progress-bar" aria-label={`${percentage}% complete`}><div className="progress-fill" style={{ width: `${percentage}%` }} /></div>
-      <div className="progress-copy">{checked.length} of {items.length} controls reviewed · {percentage}%</div>
+      <div className="checklist-summary"><div className="progress-copy">{checked.length} of {items.length} controls reviewed · {percentage}%</div><button className="button checklist-print" onClick={printChecklist} type="button">Print / export PDF</button></div>
       <div className="checklist">
         {items.map(([title, description], index) => (
           <label className="check-item" key={title}>

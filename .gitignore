@@ -14,3 +14,6 @@ build/
 postgres-data/
 /generated/prisma/
 /.local/
+
+.vercel
+.env*

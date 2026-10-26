@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarCheck, Clock3, Gauge } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarCheck, Clock3, Gauge } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { MarkdownArticle, headingId } from "@/components/markdown-article";
@@ -18,6 +18,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ sectio
   });
   if (!article) notFound();
   const toc = headings(article.body);
+  const siblings = await prisma.article.findMany({ where: { sectionId: article.sectionId, status: "PUBLISHED" }, orderBy: { order: "asc" }, select: { slug: true, title: true, order: true } });
+  const index = siblings.findIndex((item) => item.slug === article.slug);
+  const previous = siblings[index - 1];
+  const next = siblings[index + 1];
   return (
     <>
       <article className="article">
@@ -38,6 +42,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ sectio
           <h2>Official references</h2>
           <ul>{article.articleSources.map(({ source }) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.organization}: {source.title}</a></li>)}</ul>
         </section>
+        {(previous || next) && <nav className="lesson-nav" aria-label="Lesson navigation">
+          {previous ? <Link href={`/guides/${article.section.slug}/${previous.slug}`}><ArrowLeft size={16} /><span><small>Previous lesson</small>{previous.title}</span></Link> : <span />}
+          {next ? <Link href={`/guides/${article.section.slug}/${next.slug}`}><span><small>Next lesson</small>{next.title}</span><ArrowRight size={16} /></Link> : <span />}
+        </nav>}
       </article>
       <aside className="toc" aria-label="On this page">
         <div className="toc-title">On this page</div>

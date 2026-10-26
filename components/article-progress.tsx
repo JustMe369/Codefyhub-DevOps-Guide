@@ -8,13 +8,13 @@ export function ArticleProgress({ articleId }: { articleId: string }) {
   const [done, setDone] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const saved = JSON.parse(localStorage.getItem(key) || "[]") as string[];
-      setDone(saved.includes(articleId));
+      try { const saved = JSON.parse(localStorage.getItem(key) || "[]") as string[]; setDone(saved.includes(articleId)); } catch { setDone(false); }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [articleId]);
   function toggle() {
-    const saved = new Set(JSON.parse(localStorage.getItem(key) || "[]") as string[]);
+    let saved: Set<string>;
+    try { saved = new Set(JSON.parse(localStorage.getItem(key) || "[]") as string[]); } catch { saved = new Set(); }
     if (saved.has(articleId)) saved.delete(articleId); else saved.add(articleId);
     localStorage.setItem(key, JSON.stringify([...saved]));
     setDone(saved.has(articleId));

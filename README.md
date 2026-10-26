@@ -12,7 +12,7 @@
 
 Codefyhub-DevOps Guide is a PostgreSQL-backed technical knowledge system for engineers designing, securing, and operating modern infrastructure. It favors decision guidance, validation, troubleshooting, and recovery over unexplained command lists.
 
-The current edition includes 12 disciplines, 27 focused articles, 16 official source collections, 22 glossary terms, and an 18-control production-readiness review.
+The current edition includes 12 disciplines, 27 focused articles, 16 official source collections, 22 glossary terms, an 18-control production-readiness review, and a 36-question adaptive assessment studio.
 
 Open the running guide at [http://localhost:3000](http://localhost:3000).
 
@@ -42,6 +42,7 @@ Open the running guide at [http://localhost:3000](http://localhost:3000).
 - Difficulty, reading time, and last-verified metadata.
 - Official source attribution per article.
 - Browser-local article completion and readiness progress.
+- Configurable DevOps assessments with four question formats, Practice and Exam modes, confidence calibration, domain scoring, explanations, and saved attempt history.
 - Print-friendly articles and reduced-motion support.
 - Local health endpoint for application and database status.
 - Deterministic database seed that is safe to run repeatedly.
@@ -50,8 +51,8 @@ Open the running guide at [http://localhost:3000](http://localhost:3000).
 
 ```text
 Browser
-  ├─ Server-rendered guide, search, glossary, and metadata
-  ├─ localStorage progress and checklist state
+  ├─ Server-rendered guide, search, glossary, assessment shell, and metadata
+  ├─ localStorage progress, checklist, and assessment history
   └─ Accessible responsive interface
         │
         ▼
@@ -86,6 +87,7 @@ For the full system design, file-by-file map, data flows, security model, recove
 - React Markdown, Remark GFM, and Rehype Sanitize
 - Zod request validation
 - Vitest unit tests
+- Playwright end-to-end checks and pinned GitHub Actions CI
 - Docker Compose as an optional portable database runtime
 
 ## Quick start on this Windows workstation
@@ -147,6 +149,8 @@ The Compose service is health checked and publishes PostgreSQL only on `127.0.0.
 | `POSTGRES_DB` | Database name | `devops_guide` |
 | `POSTGRES_PORT` | Loopback port | `5432` or prepared `5433` |
 | `DATABASE_URL` | Prisma connection string | Must match the values above |
+| `CONTENT_VERIFIED_AT` | Explicit date of the completed editorial review | `2026-10-26` |
+| `NEXT_PUBLIC_SITE_URL` | Canonical public URL; leave unset for local-only use | `https://guide.example.com` |
 
 Never commit `.env.local` or reuse its development credentials in a shared environment.
 
@@ -160,6 +164,7 @@ Never commit `.env.local` or reuse its development credentials in a shared envir
 | `npm run lint` | Run Next.js and TypeScript ESLint rules |
 | `npm run typecheck` | Run strict TypeScript without emitting files |
 | `npm test` | Run the Vitest test suite |
+| `npm run test:e2e` | Run browser journeys against the local app |
 | `npm run db:local:start` | Start the prepared local PostgreSQL cluster on port 5433 |
 | `npm run db:generate` | Generate the Prisma client |
 | `npm run db:migrate` | Create/apply a development migration |
@@ -179,7 +184,7 @@ Recommended update sequence:
 1. Verify new technical claims against current first-party documentation.
 2. Edit or add a focused article and its source mapping.
 3. Update the verification date only after completing source review.
-4. Run the seed twice to prove idempotency.
+4. Run the seed twice to prove it is idempotent; editorial body changes create a new immutable revision.
 5. Search for representative terminology in the UI.
 6. Run the complete quality gate.
 
@@ -189,6 +194,7 @@ npm run db:seed
 npm run lint
 npm run typecheck
 npm test
+npm run test:e2e
 npm run build
 npm audit --audit-level=moderate
 ```
@@ -225,7 +231,7 @@ The current project has been verified with:
 - Successful optimized Next.js build
 - Dependency audit with zero known vulnerabilities
 - HTTP checks for all major platform sections, search, and health
-- Browser QA for responsive navigation, article rendering, full-text search, glossary results, progress, and readiness state
+- Browser QA for responsive navigation, article rendering, full-text search, glossary results, progress, readiness state, and the complete assessment flow
 - No browser console errors or warnings in the final verification pass
 
 ## Security notes
@@ -281,7 +287,7 @@ Confirm the seed has been applied and the health endpoint reports `database: con
 
 ## Status and next steps
 
-The local guide is feature-complete for its current scope. The next recommended investments are authenticated editorial workflows, end-to-end Playwright tests, automated accessibility checks, source freshness reporting, and a managed hosting/database design if public publication is authorized.
+The local guide is feature-complete for its current scope. The next recommended investments are authenticated editorial workflows, automated accessibility checks, a larger reviewed assessment bank, source freshness reporting, and a managed hosting/database design if public publication is authorized.
 
 ---
 
