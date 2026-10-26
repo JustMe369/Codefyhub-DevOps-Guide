@@ -12,7 +12,7 @@ const warnings: string[] = [];
 try {
   const sections = await prisma.section.findMany({
     where: { status: "PUBLISHED" },
-    include: { articles: { where: { status: "PUBLISHED" }, include: { _count: { select: { articleSources: true, versions: true } } } } }
+    include: { articles: { where: { status: "PUBLISHED" }, include: { articleSources: { include: { source: true } }, _count: { select: { articleSources: true, versions: true } } } } }
   });
   const articles = sections.flatMap((section) => section.articles.map((article) => ({ ...article, section: section.slug })));
   const banned = [
@@ -28,6 +28,10 @@ try {
     if (!article.body.includes("## ")) errors.push(`${article.section}/${article.slug}: missing H2 structure`);
     if (article._count.articleSources === 0) errors.push(`${article.section}/${article.slug}: no official source mapping`);
     if (article._count.versions === 0) errors.push(`${article.section}/${article.slug}: no revision snapshot`);
+    if (article.articleSources.some((item) => !item.claimScope?.trim())) errors.push(`${article.section}/${article.slug}: source mapping lacks claim scope`);
+    if (article.articleSources.some((item) => !item.source.url.startsWith("https://"))) errors.push(`${article.section}/${article.slug}: source URL must use HTTPS`);
+    const headingIds = [...article.body.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1].toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-"));
+    if (new Set(headingIds).size !== headingIds.length) errors.push(`${article.section}/${article.slug}: duplicate H2 anchor`);
     if (article.readingMinutes !== expectedMinutes) warnings.push(`${article.section}/${article.slug}: reading time should be ${expectedMinutes}, stored ${article.readingMinutes}`);
     if (words < 140) warnings.push(`${article.section}/${article.slug}: only ${words} words`);
     for (const [needle, reason] of banned) if (article.body.includes(needle)) errors.push(`${article.section}/${article.slug}: ${reason}`);
@@ -39,6 +43,8 @@ try {
   const staleBefore = new Date();
   staleBefore.setFullYear(staleBefore.getFullYear() - 1);
   for (const article of articles.filter((item) => item.lastVerifiedAt < staleBefore)) warnings.push(`${article.section}/${article.slug}: verification is over one year old`);
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  for (const article of articles.filter((item) => item.lastVerifiedAt > tomorrow)) errors.push(`${article.section}/${article.slug}: verification date is in the future`);
 
   console.log(`Validated ${sections.length} sections and ${articles.length} published articles.`);
   for (const warning of warnings) console.warn(`WARN ${warning}`);

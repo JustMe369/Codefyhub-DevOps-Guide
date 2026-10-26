@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { indexListSchema, readStored } from "@/lib/client-storage";
 
 const items = [
   ["Management isolation", "Proxmox UI and SSH are restricted to an administrative network or private VPN."],
@@ -27,7 +28,7 @@ export function ReadinessChecklist() {
   const key = "devops-guide:readiness";
   const [checked, setChecked] = useState<number[]>([]);
   useEffect(() => {
-    const timer = window.setTimeout(() => { try { setChecked(JSON.parse(localStorage.getItem(key) || "[]")); } catch { setChecked([]); } }, 0);
+    const timer = window.setTimeout(() => setChecked(readStored(key, indexListSchema, []).filter((index) => index < items.length)), 0);
     return () => window.clearTimeout(timer);
   }, []);
   function toggle(index: number) {

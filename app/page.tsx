@@ -8,7 +8,7 @@ export default async function HomePage() {
   const sections = await prisma.section.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { order: "asc" },
-    include: { _count: { select: { articles: true } } }
+    include: { _count: { select: { articles: { where: { status: "PUBLISHED" } } } } }
   });
 
   return (

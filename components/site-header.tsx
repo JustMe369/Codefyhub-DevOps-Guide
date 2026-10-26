@@ -10,7 +10,10 @@ export function SiteHeader() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   useEffect(() => {
     const saved = localStorage.getItem("devops-guide:theme");
-    if (saved === "light") document.documentElement.dataset.theme = "light";
+    const preferred = saved === "light" || saved === "dark" ? saved : window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.dataset.theme = preferred;
+    const timer = window.setTimeout(() => setTheme(preferred), 0);
+    return () => window.clearTimeout(timer);
   }, []);
   function toggleTheme() {
     const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
@@ -20,7 +23,7 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="shell header-inner">
-        <Link className="brand" href="/">
+        <Link className="brand" href="/" aria-label="Codefyhub-DevOps Guide home">
           <span className="brand-mark"><Image src="/brand/Codefyhub-DevOps-g.jpg" alt="Codefyhub-DevOps logo" width={31} height={31} priority /></span>
           <span>Codefyhub-DevOps Guide<small>Infrastructure operations</small></span>
         </Link>

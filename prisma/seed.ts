@@ -3,12 +3,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Difficulty } from "../generated/prisma/client";
 import { additionalArticles, additionalSections } from "./additional-content";
 import { knowledgeExpansionArticles, knowledgeExpansionGlossary } from "./knowledge-expansion";
+import { gapArticles } from "./gap-content";
 
 config({ path: ".env.local" });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
 const verified = new Date(`${verificationValue}T00:00:00.000Z`);
+const reverifyExisting = process.env.CONTENT_REVERIFY === "true";
 if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
 
@@ -879,7 +881,8 @@ const articles = [
     )
   },
   ...additionalArticles,
-  ...knowledgeExpansionArticles
+  ...knowledgeExpansionArticles,
+  ...gapArticles
 ];
 
 const sourceRows = [
@@ -901,7 +904,79 @@ const sourceRows = [
   { title: "Vercel production checklist", organization: "Vercel", url: "https://vercel.com/docs/production-checklist", sourceType: "official documentation", sections: ["vercel", "platform-engineering"] },
   { title: "Kubernetes documentation", organization: "Cloud Native Computing Foundation", url: "https://kubernetes.io/docs/home/", sourceType: "official documentation", sections: ["platform-engineering"] },
   { title: "OpenTelemetry documentation", organization: "Cloud Native Computing Foundation", url: "https://opentelemetry.io/docs/", sourceType: "official documentation", sections: ["platform-engineering"] }
+  ,{ title: "Cloudflare DNS documentation", organization: "Cloudflare", url: "https://developers.cloudflare.com/dns/", sourceType: "official documentation", sections: ["secure-networking"] }
+  ,{ title: "Let's Encrypt documentation", organization: "Internet Security Research Group", url: "https://letsencrypt.org/docs/", sourceType: "official documentation", sections: ["secure-networking"] }
+  ,{ title: "Docker build best practices", organization: "Docker", url: "https://docs.docker.com/build/building/best-practices/", sourceType: "official documentation", sections: ["platform-engineering"] }
+  ,{ title: "Sigstore documentation", organization: "Open Source Security Foundation", url: "https://docs.sigstore.dev/", sourceType: "official documentation", sections: ["platform-engineering"] }
+  ,{ title: "OpenTofu documentation", organization: "Linux Foundation", url: "https://opentofu.org/docs/", sourceType: "official documentation", sections: ["platform-engineering"] }
+  ,{ title: "Ansible documentation", organization: "Red Hat", url: "https://docs.ansible.com/ansible/latest/", sourceType: "official documentation", sections: ["platform-engineering"] }
+  ,{ title: "AWS IAM documentation", organization: "Amazon Web Services", url: "https://docs.aws.amazon.com/iam/", sourceType: "official documentation", sections: ["platform-engineering"] }
+  ,{ title: "PostgreSQL documentation", organization: "PostgreSQL Global Development Group", url: "https://www.postgresql.org/docs/current/", sourceType: "official documentation", sections: ["production"] }
+  ,{ title: "RabbitMQ reliability guide", organization: "Broadcom", url: "https://www.rabbitmq.com/docs/reliability", sourceType: "official documentation", sections: ["production"] }
+  ,{ title: "Redis documentation", organization: "Redis", url: "https://redis.io/docs/latest/", sourceType: "official documentation", sections: ["production"] }
+  ,{ title: "Google SRE Workbook", organization: "Google", url: "https://sre.google/workbook/table-of-contents/", sourceType: "official engineering guidance", sections: ["production"] }
 ];
+
+const articleSourceTitles: Record<string, string[]> = {
+  "start-here/reference-architecture": ["Proxmox VE Administration Guide", "Ubuntu Server documentation"],
+  "start-here/learning-path-lab": ["Ubuntu Server documentation"],
+  "storage-raid/choose-raid": ["OpenZFS documentation"],
+  "storage-raid/mdadm-zfs": ["OpenZFS documentation", "Ubuntu Server documentation"],
+  "storage-raid/design-failure-dr-validation": ["OpenZFS documentation", "Proxmox VE Administration Guide"],
+  "storage-raid/capacity-integrity-performance": ["OpenZFS documentation"],
+  "proxmox/install-proxmox": ["Proxmox VE Administration Guide"],
+  "proxmox/vm-cloud-init": ["Proxmox VE Administration Guide", "Ubuntu Server documentation"],
+  "proxmox/network-backup-ha": ["Proxmox VE Administration Guide"],
+  "proxmox/operations-automation": ["Proxmox VE Administration Guide"],
+  "secure-networking/wireguard": ["WireGuard Quick Start"],
+  "secure-networking/amneziawg-egypt": ["Amnezia documentation"],
+  "secure-networking/routing-dns-mtu-operations": ["WireGuard Quick Start", "Amnezia documentation"],
+  "ubuntu/why-ubuntu": ["Ubuntu Server documentation"],
+  "ubuntu/developer-bootstrap": ["Ubuntu Server documentation", "Docker Engine on Ubuntu"],
+  "ubuntu/complete-development-baseline": ["Ubuntu Server documentation", "Docker Engine on Ubuntu"],
+  "remote-access/connect-everywhere": ["Ubuntu Server documentation", "WireGuard Quick Start", "Amnezia documentation", "Tailscale documentation"],
+  "remote-access/beginner-remote-access": ["Ubuntu Server documentation", "Tailscale documentation"],
+  "remote-access/ssh-trust-and-gateways": ["Ubuntu Server documentation"],
+  "production/readiness": ["Proxmox VE Administration Guide", "Ubuntu Server documentation", "OpenZFS documentation"],
+  "production/observability-golden-signals": ["OpenTelemetry documentation"],
+  "production/design-failure-dr-validation": ["Proxmox VE Administration Guide", "OpenZFS documentation"],
+  "production/incident-change-capacity": ["OpenTelemetry documentation"],
+  "rhel/ecosystem-installation": ["Red Hat Enterprise Linux 10 documentation", "Red Hat Enterprise Linux life cycle"],
+  "rhel/operations-security": ["Red Hat Enterprise Linux 10 documentation"],
+  "rhel/podman-ansible": ["Red Hat Enterprise Linux 10 documentation"],
+  "rhel/lifecycle-fleet-operations": ["Red Hat Enterprise Linux 10 documentation", "Red Hat Enterprise Linux life cycle"],
+  "github/governance-flow": ["About repository rulesets"],
+  "github/actions-supply-chain": ["GitHub Actions secure use reference"],
+  "github/identity-releases": ["GitHub Actions secure use reference"],
+  "github/github-cli-reference": ["GitHub CLI manual"],
+  "github/shift-left-security-secrets": ["GitHub Actions secure use reference"],
+  "github/secure-repository-lifecycle": ["About repository rulesets", "GitHub Actions secure use reference"],
+  "supabase/architecture-local": ["Supabase documentation"],
+  "supabase/rls-auth": ["Supabase documentation"],
+  "supabase/production-operations": ["Supabase documentation", "Supabase changelog"],
+  "supabase/database-performance-recovery": ["Supabase documentation"],
+  "vercel/architecture-compute": ["Vercel documentation"],
+  "vercel/deployment-release": ["Vercel documentation", "Vercel production checklist"],
+  "vercel/security-observability": ["Vercel production checklist"],
+  "vercel/ci-cd-zero-downtime": ["Vercel documentation", "Vercel production checklist"],
+  "vercel/caching-routing-cost-operations": ["Vercel documentation"],
+  "platform-engineering/iac-golden-paths": ["Vercel production checklist", "GitHub Actions secure use reference"],
+  "platform-engineering/kubernetes-observability": ["Kubernetes documentation", "OpenTelemetry documentation"],
+  "platform-engineering/secrets-sre": ["GitHub Actions secure use reference", "OpenTelemetry documentation"],
+  "platform-engineering/platform-shift-left-secrets": ["GitHub Actions secure use reference"],
+  "platform-engineering/platform-cicd-zero-downtime": ["GitHub Actions secure use reference", "Vercel production checklist"],
+  "platform-engineering/platform-observability-golden-signals": ["OpenTelemetry documentation"],
+  "platform-engineering/platform-product-operating-model": ["Kubernetes documentation", "OpenTelemetry documentation"]
+  ,"secure-networking/dns-tls-pki-operations": ["Cloudflare DNS documentation", "Let's Encrypt documentation"]
+  ,"platform-engineering/container-images-registries-signing": ["Docker build best practices", "Sigstore documentation"]
+  ,"platform-engineering/kubernetes-day-two-operations": ["Kubernetes documentation"]
+  ,"platform-engineering/opentofu-state-modules-testing": ["OpenTofu documentation"]
+  ,"platform-engineering/ansible-inventory-roles-vault-testing": ["Ansible documentation"]
+  ,"platform-engineering/cloud-iam-cost-governance": ["AWS IAM documentation"]
+  ,"production/database-schema-change-safety": ["PostgreSQL documentation"]
+  ,"production/queues-caches-object-storage": ["RabbitMQ reliability guide", "Redis documentation"]
+  ,"production/on-call-postmortems-game-days": ["Google SRE Workbook"]
+};
 
 const glossary = [
   ["RAID", "A method of combining disks to improve availability, performance, or capacity. RAID does not replace backups."],
@@ -932,18 +1007,21 @@ const glossary = [
 async function main() {
   const sectionMap = new Map<string, string>();
   for (const section of sections) {
-    const row = await prisma.section.upsert({
-      where: { slug: section.slug },
-      update: section,
-      create: section
-    });
+    const current = await prisma.section.findUnique({ where: { slug: section.slug } });
+    const changed = !current || current.title !== section.title || current.summary !== section.summary || current.icon !== section.icon || current.order !== section.order || current.status !== "PUBLISHED";
+    const row = current
+      ? changed ? await prisma.section.update({ where: { id: current.id }, data: { ...section, status: "PUBLISHED" } }) : current
+      : await prisma.section.create({ data: section });
     sectionMap.set(section.slug, row.id);
   }
+
+  await prisma.section.updateMany({ where: { slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
 
   const expectedKeys = new Set(articles.map((article) => `${article.section}/${article.slug}`));
   const existingArticles = await prisma.article.findMany({ include: { section: { select: { slug: true } } } });
   for (const existing of existingArticles) {
     if (expectedKeys.has(`${existing.section.slug}/${existing.slug}`)) continue;
+    if (existing.status === "ARCHIVED") continue;
     await prisma.article.update({
       where: { id: existing.id },
       data: { status: "ARCHIVED", order: existing.order + 1000 }
@@ -970,6 +1048,7 @@ async function main() {
     const row = existing
       ? await prisma.$transaction(async (tx) => {
           const contentChanged = existing.body !== article.body || existing.title !== article.title || existing.description !== article.description;
+          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || (reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
           if (contentChanged) {
             const latest = await tx.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
             await tx.articleVersion.create({
@@ -981,7 +1060,8 @@ async function main() {
               }
             });
           }
-          return tx.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? verified } });
+          if (!contentChanged && !metadataChanged) return existing;
+          return tx.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? verified, lastVerifiedAt: reverifyExisting ? verified : existing.lastVerifiedAt } });
         })
       : await prisma.article.create({ data });
     articleMap.set(`${article.section}/${article.slug}`, row.id);
@@ -993,19 +1073,21 @@ async function main() {
     const { sections: sourceSections, ...source } = sourceWithSections;
     const row = await prisma.source.upsert({
       where: { url: source.url },
-      update: { ...source, accessedAt: verified, lastVerifiedAt: verified },
+      update: { title: source.title, organization: source.organization, sourceType: source.sourceType, ...(reverifyExisting ? { accessedAt: verified, lastVerifiedAt: verified } : {}) },
       create: { ...source, accessedAt: verified, lastVerifiedAt: verified }
     });
     createdSources.push({ row, sections: sourceSections });
   }
 
   for (const [articleKey, articleId] of articleMap.entries()) {
-    const sectionSlug = articleKey.split("/")[0];
-    for (const source of createdSources.filter((item) => item.sections.includes(sectionSlug))) {
+    const selectedTitles = articleSourceTitles[articleKey] ?? [];
+    if (selectedTitles.length === 0) throw new Error(`No explicit source assignment for ${articleKey}`);
+    await prisma.articleSource.deleteMany({ where: { articleId } });
+    for (const source of createdSources.filter((item) => selectedTitles.includes(item.row.title))) {
       await prisma.articleSource.upsert({
         where: { articleId_sourceId: { articleId, sourceId: source.row.id } },
-        update: { claimScope: `Reviewed reference for ${articleKey}` },
-        create: { articleId, sourceId: source.row.id, claimScope: `Reviewed reference for ${articleKey}` }
+        update: { claimScope: `Supports the procedures and operational guidance in ${articleKey}.` },
+        create: { articleId, sourceId: source.row.id, claimScope: `Supports the procedures and operational guidance in ${articleKey}.` }
       });
     }
   }

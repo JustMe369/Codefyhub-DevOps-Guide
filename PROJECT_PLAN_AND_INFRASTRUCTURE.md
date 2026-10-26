@@ -26,8 +26,8 @@ The product is intentionally documentation-first. It does not execute infrastruc
 | Capability | Current state |
 |---|---|
 | Guide sections | 12 published sections |
-| Articles | 49 focused articles |
-| Official source records | 18 |
+| Articles | 58 focused articles |
+| Official source records | 29 |
 | Glossary terms | 40 |
 | Readiness controls | 18 browser-local checks |
 | Assessment studio | 48 questions, 12 domains, 4 formats, Practice and Exam modes |

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
+import { readStored } from "@/lib/client-storage";
 import {
   ArrowLeft,
   ArrowRight,
@@ -53,6 +55,10 @@ type SavedAttempt = {
 };
 
 const historyKey = "codefyhub-devops-guide:exam-history:v1";
+const historySchema = z.array(z.object({
+  id: z.string(), completedAt: z.string(), percent: z.number().min(0).max(100), correct: z.number().int().nonnegative(),
+  total: z.number().int().positive(), mode: z.enum(["practice", "exam"]), topics: z.array(z.string()).max(20), elapsedSeconds: z.number().int().nonnegative()
+})).max(10);
 const allTypes = Object.keys(questionTypeLabels) as QuestionType[];
 
 function shuffle<T>(items: T[]) {
@@ -100,11 +106,7 @@ export function ExamEngine() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      try {
-        setHistory(JSON.parse(localStorage.getItem(historyKey) || "[]") as SavedAttempt[]);
-      } catch {
-        setHistory([]);
-      }
+      setHistory(readStored(historyKey, historySchema, []));
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);

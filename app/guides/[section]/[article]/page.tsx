@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, CalendarCheck, Clock3, Gauge } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
@@ -9,16 +10,30 @@ import { RaidPicker } from "@/components/raid-picker";
 import { VpnPicker } from "@/components/vpn-picker";
 import { RemoteAccessPicker } from "@/components/remote-access-picker";
 
+type Props = { params: Promise<{ section: string; article: string }> };
+
+async function findPublishedArticle(sectionSlug: string, articleSlug: string) {
+  return prisma.article.findFirst({
+    where: { slug: articleSlug, section: { slug: sectionSlug, status: "PUBLISHED" }, status: "PUBLISHED" },
+    include: { section: true, articleSources: { include: { source: true } } }
+  });
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { section, article } = await params;
+  const row = await findPublishedArticle(section, article);
+  if (!row) return {};
+  const url = `/guides/${row.section.slug}/${row.slug}`;
+  return { title: row.title, description: row.description, alternates: { canonical: url }, openGraph: { title: row.title, description: row.description, url, type: "article", publishedTime: row.publishedAt?.toISOString(), modifiedTime: row.updatedAt.toISOString() } };
+}
+
 function headings(body: string) {
   return [...body.matchAll(/^##\s+(.+)$/gm)].map((match) => ({ label: match[1], id: headingId(match[1]) }));
 }
 
-export default async function ArticlePage({ params }: { params: Promise<{ section: string; article: string }> }) {
+export default async function ArticlePage({ params }: Props) {
   const { section: sectionSlug, article: articleSlug } = await params;
-  const article = await prisma.article.findFirst({
-    where: { slug: articleSlug, section: { slug: sectionSlug }, status: "PUBLISHED" },
-    include: { section: true, articleSources: { include: { source: true } } }
-  });
+  const article = await findPublishedArticle(sectionSlug, articleSlug);
   if (!article) notFound();
   const toc = headings(article.body);
   const siblings = await prisma.article.findMany({ where: { sectionId: article.sectionId, status: "PUBLISHED" }, orderBy: { order: "asc" }, select: { slug: true, title: true, order: true } });
@@ -71,7 +86,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ sectio
         )}
         <section className="sources">
           <h2>Official references</h2>
-          <ul>{article.articleSources.map(({ source }) => <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.organization}: {source.title}</a></li>)}</ul>
+          <ul>{article.articleSources.map(({ source, claimScope }) => <li key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.organization}: {source.title}</a>{claimScope ? <span> — {claimScope}</span> : null}</li>)}</ul>
         </section>
         {(previous || next) && <nav className="lesson-nav" aria-label="Lesson navigation">
           {previous ? <Link href={`/guides/${article.section.slug}/${previous.slug}`}><ArrowLeft size={16} /><span><small>Previous lesson</small>{previous.title}</span></Link> : <span />}

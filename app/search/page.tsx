@@ -22,6 +22,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     FROM "Article" a
     JOIN "Section" s ON s.id = a."sectionId"
     WHERE a.status = 'PUBLISHED'
+      AND s.status = 'PUBLISHED'
       AND to_tsvector('english', a.title || ' ' || a.description || ' ' || a.body)
         @@ websearch_to_tsquery('english', ${query})
     UNION ALL

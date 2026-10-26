@@ -12,7 +12,7 @@
 
 Codefyhub-DevOps Guide is a PostgreSQL-backed technical knowledge system for engineers designing, securing, and operating modern infrastructure. It favors decision guidance, validation, troubleshooting, and recovery over unexplained command lists.
 
-The current edition includes 12 disciplines, 49 focused articles, 18 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
+The current edition includes 12 disciplines, 58 focused articles, 29 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
 
 Open the running guide at [http://localhost:3000](http://localhost:3000).
 
@@ -150,6 +150,7 @@ The Compose service is health checked and publishes PostgreSQL only on `127.0.0.
 | `POSTGRES_PORT` | Loopback port | `5432` or prepared `5433` |
 | `DATABASE_URL` | Prisma connection string | Must match the values above |
 | `CONTENT_VERIFIED_AT` | Explicit date of the completed editorial review | `2026-10-26` |
+| `CONTENT_REVERIFY` | Set to `true` only when an existing corpus was deliberately re-reviewed | Unset |
 | `NEXT_PUBLIC_SITE_URL` | Canonical public URL; leave unset for local-only use | `https://guide.example.com` |
 
 Never commit `.env.local` or reuse its development credentials in a shared environment.
@@ -181,12 +182,14 @@ Core and advanced editorial data lives in:
 
 - `prisma/seed.ts`
 - `prisma/additional-content.ts`
+- `prisma/knowledge-expansion.ts`
+- `prisma/gap-content.ts`
 
 Recommended update sequence:
 
 1. Verify new technical claims against current first-party documentation.
 2. Edit or add a focused article and its source mapping.
-3. Update the verification date only after completing source review.
+3. Update the verification date and set `CONTENT_REVERIFY=true` only after completing a deliberate corpus review.
 4. Run the seed twice to prove it is idempotent; editorial body changes create a new immutable revision.
 5. Search for representative terminology in the UI.
 6. Run the complete quality gate.
