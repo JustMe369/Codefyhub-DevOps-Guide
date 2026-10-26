@@ -36,7 +36,7 @@ const sections = [
   { slug: "proxmox", title: "Proxmox VE", summary: "Build a repeatable virtualization platform from installation to production operations.", icon: "Server", order: 3 },
   { slug: "secure-networking", title: "Secure networking", summary: "Connect teams safely with WireGuard and AmneziaWG-aware deployment patterns.", icon: "Shield", order: 4 },
   { slug: "ubuntu", title: "Ubuntu workspace", summary: "Create a stable development environment with production-like tooling.", icon: "Terminal", order: 5 },
-  { slug: "remote-access", title: "Remote access", summary: "Reach Ubuntu securely from Windows, macOS, Linux, Android, and iOS.", icon: "Network", order: 6 },
+  { slug: "remote-access", title: "Remote access", summary: "Reach remote systems securely from Windows, macOS, Linux, Android, and iOS.", icon: "Network", order: 6 },
   { slug: "production", title: "Production readiness", summary: "Turn a working lab into an observable, recoverable operating platform.", icon: "BadgeCheck", order: 7 },
   ...additionalSections
 ];
