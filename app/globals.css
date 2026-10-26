@@ -126,6 +126,37 @@ button, input { font: inherit; }
 .toc::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Modern minimal scrollbar for tables with horizontal overflow */
+.prose table,
+table {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+}
+
+.prose table::-webkit-scrollbar,
+table::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.prose table::-webkit-scrollbar-track,
+table::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prose table::-webkit-scrollbar-thumb,
+table::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.prose table::-webkit-scrollbar-thumb:hover,
+table::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
 .side-title, .toc-title { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #6f8e86; font-weight: 800; margin-bottom: 14px; }
 .side-section { margin-bottom: 18px; }
 .side-section > a { font-size: 14px; font-weight: 750; display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
