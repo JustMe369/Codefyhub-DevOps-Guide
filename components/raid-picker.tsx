@@ -177,7 +177,7 @@ export function RaidPicker() {
           </div>
         )}
         <p className="widget-note">
-          > Decision rule: there is no universal best RAID. For busy VM storage, mirrors or RAID 10 usually provide predictable
+          Decision rule: there is no universal best RAID. For busy VM storage, mirrors or RAID 10 usually provide predictable
           latency and simpler rebuild behavior. For large sequential capacity, double parity may be more important than write speed.
         </p>
       </div>

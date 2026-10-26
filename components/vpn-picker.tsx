@@ -153,7 +153,7 @@ export function VpnPicker() {
           </div>
         )}
         <p className="widget-note">
-          > Safety principle: never expose management UIs (Proxmox 8006, RDP 3389, PostgreSQL 5432) directly to the internet.
+          Safety principle: never expose management UIs (Proxmox 8006, RDP 3389, PostgreSQL 5432) directly to the internet.
           Always connect through the VPN first.
         </p>
       </div>

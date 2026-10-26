@@ -81,7 +81,7 @@ const REMOTE_TABLE: Record<string, RemoteResult> = {
       "Install Sunshine on the host (Windows, Linux, macOS).",
       "Set credentials and pair in the Sunshine web UI.",
       "Install Moonlight on the client, pair with the PIN.",
-      "Use the built-in "Desktop" entry to stream the full screen.",
+      "Use the built-in 'Desktop' entry to stream the full screen.",
     ],
     icon: Smartphone,
     color: "var(--accent)",
@@ -176,7 +176,7 @@ export function RemoteAccessPicker() {
           </div>
         )}
         <p className="widget-note">
-          > Principle: connect to the private VPN first, then use SSH or a remote display protocol over the tunnel. Never forward
+          Principle: connect to the private VPN first, then use SSH or a remote display protocol over the tunnel. Never forward
           RDP 3389, VNC 5900+, Proxmox 8006, or PostgreSQL 5432 directly from a public router.
         </p>
       </div>
