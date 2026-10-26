@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Moon, Search, Sun, TerminalSquare, X } from "lucide-react";
+import { Menu, Moon, Search, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function SiteHeader() {
@@ -20,7 +20,7 @@ export function SiteHeader() {
     <header className="site-header">
       <div className="shell header-inner">
         <Link className="brand" href="/">
-          <span className="brand-mark"><TerminalSquare size={17} aria-hidden="true" /></span>
+          <span className="brand-mark"><img src="/brand/Codefyhub-DevOps-g.jpg" alt="Codefyhub-DevOps logo" width="31" height="31" loading="eager" /></span>
           <span>Codefyhub-DevOps Guide<small>Infrastructure operations</small></span>
         </Link>
         <button className="header-icon menu-toggle" type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
