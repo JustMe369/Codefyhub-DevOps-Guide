@@ -2,6 +2,7 @@ import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Difficulty } from "../generated/prisma/client";
 import { additionalArticles, additionalSections } from "./additional-content";
+import { knowledgeExpansionArticles, knowledgeExpansionGlossary } from "./knowledge-expansion";
 
 config({ path: ".env.local" });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -720,12 +721,12 @@ const articles = [
       "",
       "```bash",
       "# Install cloudflared on the host",
-      "sudo cloudflared service install \\",
-      "  --hostname my-server.example.com \\",
-      "  --url ssh://localhost:22",
+      "# Install the managed tunnel service using the token from the Cloudflare dashboard",
+      "sudo cloudflared service install <tunnel-token>",
+      "# Configure ssh.example.com → SSH → localhost:22 in the tunnel dashboard",
       "```",
       "",
-      "After setup, users can connect with `ssh user@my-server.example.com` without a VPN. Cloudflare authenticates the user, and the connection is encrypted end-to-end.",
+      "Non-HTTP services require `cloudflared` on the client. Configure SSH with `ProxyCommand cloudflared access ssh --hostname %h`, protect the hostname with Cloudflare Access, and test identity enforcement before use.",
       "",
       "## Simple safety checklist",
       "",
@@ -746,7 +747,7 @@ const articles = [
       "",
       "Most remote access tools stop when the computer restarts. Make sure the remote computer is set to:",
       "",
-      "1. **Auto-login for the SSH server** (so SSH is available immediately after boot).",
+      "1. **Enable the SSH service at boot** with `sudo systemctl enable ssh`; interactive user auto-login is neither required nor recommended.",
       "2. **Auto-start the VNC or RDP server** on boot.",
       "3. **Never lock you out**—test that you can reconnect immediately after a restart.",
       "",
@@ -877,7 +878,8 @@ const articles = [
       "- Backup restoration tests verify user-facing service, security controls, monitoring, and data integrity after recovery.",
     )
   },
-  ...additionalArticles
+  ...additionalArticles,
+  ...knowledgeExpansionArticles
 ];
 
 const sourceRows = [
@@ -923,7 +925,8 @@ const glossary = [
   ["Fluid Compute", "Vercel's compute model that reuses function instances across concurrent requests and bills active CPU separately from provisioned memory."],
   ["SLO", "Service-level objective: a reliability target measured with a user-relevant service-level indicator."],
   ["Error budget", "The amount of unreliability permitted by an SLO over a defined measurement window."],
-  ["Golden path", "A supported, reusable route for creating and operating a service with approved defaults and controls."]
+  ["Golden path", "A supported, reusable route for creating and operating a service with approved defaults and controls."],
+  ...knowledgeExpansionGlossary
 ];
 
 async function main() {
@@ -937,6 +940,16 @@ async function main() {
     sectionMap.set(section.slug, row.id);
   }
 
+  const expectedKeys = new Set(articles.map((article) => `${article.section}/${article.slug}`));
+  const existingArticles = await prisma.article.findMany({ include: { section: { select: { slug: true } } } });
+  for (const existing of existingArticles) {
+    if (expectedKeys.has(`${existing.section.slug}/${existing.slug}`)) continue;
+    await prisma.article.update({
+      where: { id: existing.id },
+      data: { status: "ARCHIVED", order: existing.order + 1000 }
+    });
+  }
+
   const articleMap = new Map<string, string>();
   for (const article of articles) {
     const sectionId = sectionMap.get(article.section)!;
@@ -947,7 +960,7 @@ async function main() {
       description: article.description,
       body: article.body,
       difficulty: article.difficulty,
-      readingMinutes: article.minutes,
+      readingMinutes: Math.max(2, Math.ceil(article.body.trim().split(/\s+/).length / 180)),
       order: article.order,
       status: "PUBLISHED" as const,
       publishedAt: verified,

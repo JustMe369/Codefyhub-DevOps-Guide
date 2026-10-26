@@ -12,7 +12,7 @@
 
 Codefyhub-DevOps Guide is a PostgreSQL-backed technical knowledge system for engineers designing, securing, and operating modern infrastructure. It favors decision guidance, validation, troubleshooting, and recovery over unexplained command lists.
 
-The current edition includes 12 disciplines, 27 focused articles, 16 official source collections, 22 glossary terms, an 18-control production-readiness review, and a 36-question adaptive assessment studio.
+The current edition includes 12 disciplines, 49 focused articles, 18 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
 
 Open the running guide at [http://localhost:3000](http://localhost:3000).
 
@@ -160,6 +160,9 @@ Never commit `.env.local` or reuse its development credentials in a shared envir
 |---|---|
 | `npm run dev` | Start the Next.js development server |
 | `npm run build` | Produce the optimized production build |
+| `npm run deploy:db` | Apply checked-in migrations as an explicit deployment step |
+| `npm run deploy:content` | Publish reviewed content as an explicit deployment step |
+| `npm run content:check` | Validate content structure, sources, revisions, reading time, and unsafe command patterns |
 | `npm start` | Serve the production build |
 | `npm run lint` | Run Next.js and TypeScript ESLint rules |
 | `npm run typecheck` | Run strict TypeScript without emitting files |
@@ -191,6 +194,7 @@ Recommended update sequence:
 ```powershell
 npm run db:seed
 npm run db:seed
+npm run content:check
 npm run lint
 npm run typecheck
 npm test

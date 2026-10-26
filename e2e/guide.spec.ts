@@ -14,6 +14,6 @@ test("search, lesson navigation, and readiness export are available", async ({ p
 
 test("assessment builder exposes a ready-to-start session", async ({ page }) => {
   await page.goto("/exam");
-  await expect(page.getByText(/36 questions available/i)).toBeVisible();
+  await expect(page.getByText(/48 questions available/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Start assessment" })).toBeEnabled();
 });

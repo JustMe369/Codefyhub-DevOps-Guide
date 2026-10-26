@@ -26,11 +26,11 @@ The product is intentionally documentation-first. It does not execute infrastruc
 | Capability | Current state |
 |---|---|
 | Guide sections | 12 published sections |
-| Articles | 27 focused articles |
-| Official source records | 16 |
-| Glossary terms | 22 |
+| Articles | 49 focused articles |
+| Official source records | 18 |
+| Glossary terms | 40 |
 | Readiness controls | 18 browser-local checks |
-| Assessment studio | 36 questions, 12 domains, 4 formats, Practice and Exam modes |
+| Assessment studio | 48 questions, 12 domains, 4 formats, Practice and Exam modes |
 | Search | PostgreSQL full-text search across articles and glossary |
 | Content format | Sanitized Markdown stored in PostgreSQL |
 | Database | PostgreSQL 18, local port `5433` |
@@ -324,7 +324,7 @@ Recovery order:
 | HTTP smoke | Homepage, platform sections, search, glossary, checklist, assessment, and health |
 | Browser | Responsive reading layout, navigation, search, completion, checklist, assessment configuration, feedback, results, review, and console errors |
 | Accessibility | Keyboard navigation, focus visibility, semantic landmarks, reduced motion, contrast, and print output |
-| Content | First-party source review, last-verified date, placeholder safety, and destructive-command warnings |
+| Content | Automated structure/source/revision/reading-time gate plus first-party review and destructive-command warnings |
 
 ## 14. Content governance
 

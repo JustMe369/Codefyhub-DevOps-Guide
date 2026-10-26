@@ -298,6 +298,78 @@ export const questionBank: ExamQuestion[] = [
     options: ["Define user-centered SLIs and SLOs, then alert on actionable burn-rate or symptom thresholds with clear ownership.", "Lower every threshold until more alerts fire.", "Page all engineers for every log warning.", "Remove observability to reduce noise."],
     correct: [0], explanation: "SLO-based, symptom-oriented alerting connects response to user impact. Clear ownership and runbooks turn alerts into actionable work.",
     objective: "Build actionable reliability signals.", guideHref: "/guides/platform-engineering"
+  },
+  {
+    id: "architecture-lab-proof", topic: "start-here", type: "scenario", difficulty: "intermediate",
+    prompt: "What is the strongest evidence that a new infrastructure lab is reproducible?",
+    options: ["Another engineer rebuilds and validates it from the documentation.", "The original author remembers every step.", "A dashboard was green once.", "The host has a large amount of memory."],
+    correct: [0], explanation: "Independent reconstruction proves that the design, prerequisites, and validation evidence are usable beyond one operator.", objective: "Validate reproducible lab design.", guideHref: "/guides/start-here"
+  },
+  {
+    id: "storage-benchmark-safety", topic: "storage-raid", type: "single", difficulty: "advanced",
+    prompt: "Where should a destructive storage benchmark be run?",
+    options: ["Only on a verified disposable target with no required data.", "On the busiest production database volume.", "On an unidentified raw disk.", "On the only backup copy."],
+    correct: [0], explanation: "Benchmark tools can overwrite data. Device identity and disposability must be proven before execution.", objective: "Benchmark storage safely.", guideHref: "/guides/storage-raid"
+  },
+  {
+    id: "proxmox-maintenance", topic: "proxmox", type: "multiple", difficulty: "advanced",
+    prompt: "Which checks belong before Proxmox node maintenance? Select all that apply.",
+    options: ["Cluster quorum and storage health", "Recent backup and restore evidence", "Workload migration or shutdown plan", "Deleting monitoring history"],
+    correct: [0, 1, 2], explanation: "Maintenance begins with healthy dependencies, protected workloads, and a recovery path.", objective: "Prepare safe hypervisor maintenance.", guideHref: "/guides/proxmox"
+  },
+  {
+    id: "network-handshake-traffic", topic: "secure-networking", type: "scenario", difficulty: "intermediate",
+    prompt: "WireGuard shows a recent handshake but the private service is unreachable. What should be checked next?",
+    options: ["Routes, AllowedIPs, forwarding, firewall, NAT, and MTU.", "Regenerate every key immediately.", "Expose the service publicly.", "Disable host-key verification."],
+    correct: [0], explanation: "A handshake proves peer reachability and key agreement, not a correct routed packet path.", objective: "Diagnose post-handshake VPN failures.", guideHref: "/guides/secure-networking"
+  },
+  {
+    id: "ubuntu-rebuild", topic: "ubuntu", type: "multiple", difficulty: "intermediate",
+    prompt: "Which assets make a developer workstation recoverable? Select all that apply.",
+    options: ["Idempotent bootstrap", "Independent user-data backup", "Versioned project dependencies", "Undocumented global installations"],
+    correct: [0, 1, 2], explanation: "Recovery depends on reproducible configuration, protected data, and explicit dependency versions.", objective: "Design workstation recovery.", guideHref: "/guides/ubuntu"
+  },
+  {
+    id: "remote-sshd-change", topic: "remote-access", type: "scenario", difficulty: "advanced",
+    prompt: "How should an administrator safely change sshd configuration remotely?",
+    options: ["Validate with sshd -t, retain a second session, and prepare rollback.", "Close every session before testing.", "Disable authentication temporarily.", "Expose SSH to all networks."],
+    correct: [0], explanation: "Syntax validation, an existing recovery session, and rollback reduce lockout risk.", objective: "Change remote access safely.", guideHref: "/guides/remote-access"
+  },
+  {
+    id: "production-change-record", topic: "production", type: "multiple", difficulty: "intermediate",
+    prompt: "What belongs in a production change record? Select all that apply.",
+    options: ["Risk and affected services", "Validation and rollback trigger", "Owner and observation window", "A promise that failure is impossible"],
+    correct: [0, 1, 2], explanation: "A useful change record makes risk, responsibility, verification, and recovery explicit.", objective: "Govern production changes.", guideHref: "/guides/production"
+  },
+  {
+    id: "rhel-canary", topic: "rhel", type: "scenario", difficulty: "advanced",
+    prompt: "What is the safest first target for a fleet-wide RHEL patch?",
+    options: ["A representative canary in a controlled failure domain.", "Every production host simultaneously.", "The backup server with no rollback.", "An unregistered personal workstation."],
+    correct: [0], explanation: "A representative canary reveals compatibility problems before the blast radius expands.", objective: "Stage enterprise Linux maintenance.", guideHref: "/guides/rhel"
+  },
+  {
+    id: "github-release-evidence", topic: "github", type: "multiple", difficulty: "advanced",
+    prompt: "Which evidence strengthens a software release? Select all that apply.",
+    options: ["Immutable artifact digest", "SBOM and provenance", "Required check results", "A rebuild from an unpinned branch after approval"],
+    correct: [0, 1, 2], explanation: "A release should connect reviewed source to a specific verified artifact and its controls.", objective: "Build auditable releases.", guideHref: "/guides/github"
+  },
+  {
+    id: "supabase-pool", topic: "supabase", type: "single", difficulty: "advanced",
+    prompt: "Which connection mode generally fits high-concurrency stateless serverless requests?",
+    options: ["Transaction pooling with a bounded application pool.", "Unlimited direct connections.", "A permanent superuser session per request.", "Client-side service-role connections."],
+    correct: [0], explanation: "Transaction pooling and bounded clients reduce connection exhaustion for stateless workloads.", objective: "Choose database connection strategy.", guideHref: "/guides/supabase"
+  },
+  {
+    id: "vercel-cache-auth", topic: "vercel", type: "scenario", difficulty: "advanced",
+    prompt: "A response contains user-specific account data. What must be decided before caching it?",
+    options: ["Authorization scope, cache key, freshness, and invalidation semantics.", "Only the response size.", "Whether the CSS is minified.", "Whether the database uses UUIDs."],
+    correct: [0], explanation: "Incorrect cache scope can disclose one user's response to another user.", objective: "Cache authorized data safely.", guideHref: "/guides/vercel"
+  },
+  {
+    id: "platform-product", topic: "platform-engineering", type: "single", difficulty: "intermediate",
+    prompt: "What is the clearest sign that an internal platform is being operated as a product?",
+    options: ["It has defined users, outcomes, support boundaries, service levels, and measured adoption.", "It contains the most possible tools.", "Only its authors can operate it.", "Teams are forbidden from reporting friction."],
+    correct: [0], explanation: "Platform product thinking connects capabilities and support to developer outcomes and feedback.", objective: "Operate platforms around user outcomes.", guideHref: "/guides/platform-engineering"
   }
 ];
 

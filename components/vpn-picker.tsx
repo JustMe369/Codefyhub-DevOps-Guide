@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Network, ShieldCheck, Lock, AlertTriangle } from "lucide-react";
+import { Network, ShieldCheck, AlertTriangle } from "lucide-react";
 
 type Environment = "personal" | "corporate" | "restricted";
 type DeviceCount = "1-5" | "6-20" | "20+";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { HardDrive, ShieldCheck, Clock, Database, AlertTriangle } from "lucide-react";
+import { HardDrive, ShieldCheck, Database, AlertTriangle } from "lucide-react";
 
 type DiskCount = "2" | "3" | "4" | "6+";
 type Workload = "vm" | "archive" | "cache" | "database";
