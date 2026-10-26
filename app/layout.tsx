@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
+import { AIChat } from "@/components/ai-chat";
 
 const publicUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
 
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <SiteHeader />
         <main id="main-content">{children}</main>
         <Footer />
+        <AIChat />
       </body>
     </html>
   );

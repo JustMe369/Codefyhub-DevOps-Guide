@@ -46,6 +46,7 @@ Open the running guide at [http://localhost:3000](http://localhost:3000).
 - Print-friendly articles and reduced-motion support.
 - Local health endpoint for application and database status.
 - Deterministic database seed that is safe to run repeatedly.
+- AI chat assistant (Groq free-tier LLM) for DevOps guidance, accessible via floating widget.
 
 ## Architecture
 
@@ -154,6 +155,7 @@ The Compose service is health checked and publishes PostgreSQL only on `127.0.0.
 | `CONTENT_VERIFIED_BY` | Accountable editorial reviewer or team | `Codefyhub Editorial Team` |
 | `NEXT_PUBLIC_SITE_URL` | Canonical public URL; leave unset for local-only use | `https://guide.example.com` |
 | `HSTS_PRELOAD` | Opt in to HSTS subdomain coverage and browser preload only after every subdomain is HTTPS-ready | Unset |
+| `GROQ_API_KEY` | API key for Groq free-tier LLM (powers the AI chat assistant). Get one at https://console.groq.com | `gsk_...` |
 
 Never commit `.env.local` or reuse its development credentials in a shared environment.
 
