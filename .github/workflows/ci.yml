@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Vitest unit tests
+        run: npm test
+
+      - name: Dependency audit
+        run: npm audit --audit-level=moderate
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-gate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000" >> "$GITHUB_ENV"
+
+      - name: Database setup
+        run: |
+          npm run db:generate
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Build production
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.NEXT_PUBLIC_SITE_URL }}
+
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quality-gate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          sudo -u postgres pg_lsclusters
+          sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres" >> "$GITHUB_ENV"
+
+      - name: Database setup
+        run: |
+          npm run db:generate
+          npm run db:deploy
+          npm run db:seed
+
+      - name: Start dev server
+        run: nohup npm run dev > server.log 2>&1 &
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Wait for server
+        run: |
+          sleep 5
+          curl -f http://localhost:3000/api/health || (sleep 10 && curl -f http://localhost:3000/api/health)
+
+      - name: Run Playwright e2e tests
+        run: npm run test:e2e

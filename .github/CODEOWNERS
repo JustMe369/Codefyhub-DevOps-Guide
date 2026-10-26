@@ -1,0 +1,29 @@
+# Editorial content (articles, seed data, glossary)
+prisma/seed.ts @codefyhub-editorial
+prisma/additional-content.ts @codefyhub-editorial
+prisma/knowledge-expansion.ts @codefyhub-editorial
+prisma/gap-content.ts @codefyhub-editorial
+prisma/schema.prisma @codefyhub-editorial @codefyhub-platform
+
+# Application code (components, pages, utils, API)
+app/ @codefyhub-platform
+components/ @codefyhub-platform
+lib/ @codefyhub-platform
+
+# Styling and design tokens
+app/globals.css @codefyhub-platform
+tailwind.config.* @codefyhub-platform
+
+# Tests
+lib/ @codefyhub-platform
+*.test.ts @codefyhub-platform
+
+# Configuration
+package.json @codefyhub-infra @codefyhub-platform
+next.config.ts @codefyhub-platform
+tsconfig.json @codefyhub-platform
+.github/ @codefyhub-platform
+
+# Documentation
+README.md @codefyhub-editorial
+PROJECT_PLAN_AND_INFRASTRUCTURE.md @codefyhub-editorial

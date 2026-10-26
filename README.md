@@ -87,7 +87,7 @@ For the full system design, file-by-file map, data flows, security model, recove
 - React Markdown, Remark GFM, and Rehype Sanitize
 - Zod request validation
 - Vitest unit tests
-- Playwright end-to-end checks and pinned GitHub Actions CI
+- Playwright end-to-end checks and pinned GitHub Actions CI/CD
 - Docker Compose as an optional portable database runtime
 
 ## Quick start on this Windows workstation
@@ -162,7 +162,7 @@ Never commit `.env.local` or reuse its development credentials in a shared envir
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Start the Next.js development server |
-| `npm run build` | Produce the optimized production build |
+| `npm run build` | Produce the optimized production build (applies migrations, generates client, seeds content) |
 | `npm run deploy:db` | Apply checked-in migrations as an explicit deployment step |
 | `npm run deploy:content` | Publish reviewed content as an explicit deployment step |
 | `npm run content:check` | Validate content structure, sources, revisions, reading time, and unsafe command patterns |
