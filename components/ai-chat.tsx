@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, X, Send, History } from "lucide-react";
+import { Bot, X, Send, History, Monitor } from "lucide-react";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -113,117 +113,137 @@ export function AIChat() {
 
   return (
     <>
+      {/* Animated gradient mesh background */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px] animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-text/5 blur-[120px] animate-pulse" style={{ animationDelay: "2s" }}</div>
+        <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-accent/10 blur-[80px]"></div>
+      </div>
+
       {/* Floating toggle button */}
       <button
-        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-10 h-10 rounded-full bg-accent text-bg border border-border/30 hover:bg-accent-2 transition-all shadow-sm"
+        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-11 h-11 rounded-full bg-accent text-bg border border-accent/30 shadow-[0_0_20px_rgba(77,226,189,0.3)] hover:bg-accent/90 hover:shadow-[0_0_30px_rgba(77,226,189,0.5)] transition-all active:scale-95"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? "Close AI assistant" : "Open AI assistant"}
       >
         <Bot className="w-5 h-5" aria-hidden="true" />
       </button>
 
-      {/* Chat panel — clean, no background panels */}
+      {/* Modern glassmorphism chat popup */}
       {isOpen && (
-        <div className="fixed bottom-16 right-6 z-50 w-80 flex flex-col max-h-[60vh] rounded-lg border border-border shadow-lg">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-accent" aria-hidden="true" />
-              <span className="font-semibold text-text text-sm">Codefyhub AI</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={clearChat}
-                className="rounded p-1 hover:bg-accent-50 transition-colors text-xs text-muted"
-                title="Clear conversation"
-                aria-label="Clear chat"
-              >
-                <History className="w-3 h-3" aria-hidden="true" />
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded p-1 hover:bg-accent-50 transition-colors"
-                aria-label="Close chat"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Model selector */}
-          <div className="px-4 py-2 border-b border-border/50 bg-bg/30">
-            <label className="text-[10px] text-muted uppercase tracking-wider mb-1 block">LLM Model</label>
-            <select
-              className="w-full rounded border border-border/50 bg-transparent px-2 py-1.5 text-xs text-text focus:outline-none focus:ring-1 focus:ring-accent"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-            >
-              {FREE_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex gap-3 max-w-[90%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
-              >
-                <div
-                  className={`rounded-lg p-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-accent/10 text-text border border-accent/30"
-                      : "bg-text/5 text-text border border-border"
-                  }`}
+        <div className="fixed bottom-16 right-6 z-50 w-96 flex flex-col max-h-[75vh] rounded-2xl border border-accent/20 bg-bg/70 backdrop-blur-xl shadow-2xl shadow-accent/10">
+          {/* Entrance animation wrapper */}
+          <div className="animate-[slideUp_0.4s_ease-out]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/50 backdrop-blur-sm rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/40 shadow-[0_0_15px_rgba(77,226,189,0.2)]">
+                  <Bot className="w-4 h-4 text-accent" aria-hidden="true" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm text-text leading-tight">Codefyhub AI</span>
+                  <span className="text-[10px] text-accent/60 font-medium mt-0.5 block">DevOps Assistant</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={clearChat}
+                  className="w-8 h-8 rounded-lg bg-bg/40 hover:bg-accent/10 border border-accent/30 text-accent transition-all flex items-center justify-center active:scale-95"
+                  title="Clear conversation"
+                  aria-label="Clear chat"
                 >
-                  {msg.content}
-                </div>
+                  <History className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="w-8 h-8 rounded-lg bg-bg/40 hover:bg-red-500/10 border border-red-500/30 text-red-500 transition-all flex items-center justify-center active:scale-95"
+                  aria-label="Close chat"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            ))}
-            {isLoading && (
-              <div className="flex gap-3 mr-auto">
-                <div className="flex flex-col gap-1">
-                  <div className="w-16 h-2 rounded bg-border/30 animate-pulse" />
-                  <div className="w-10 h-2 rounded bg-border/30 animate-pulse" />
-                </div>
-              </div>
-            )}
-            {serverError && (
-              <div className="flex gap-3 mr-auto">
-                <div className="rounded-lg p-3 bg-red-500/10 border border-red-500/30 text-red-500 text-sm whitespace-pre-wrap">
-                  {serverError}
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+            </div>
 
-          {/* Input */}
-          <div className="p-3 border-t border-border/50">
-            <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
-              <input
-                className="flex-1 rounded-lg border border-border bg-transparent px-3 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent placeholder-text-muted/50"
-                placeholder="Ask about DevOps, RAID, Proxmox, WireGuard, CI/CD..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="rounded-lg px-3 py-2 bg-accent text-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                aria-label="Send message"
-              >
-                <Send className="w-4 h-4" aria-hidden="true" />
-              </button>
-            </form>
-            <p className="text-[10px] text-muted/60 mt-1">
-              AI responses are suggestions. Verify commands in a lab before production use.
-            </p>
+            {/* Model selector */}
+            <div className="px-5 py-3 border-b border-accent/20 bg-bg/30">
+              <div className="flex items-center gap-3">
+                <Monitor className="w-3.5 h-3.5 text-accent/50" aria-hidden="true" />
+                <label className="text-[10px] text-muted uppercase tracking-wider">Model</label>
+                <select
+                  className="flex-1 rounded-lg border border-accent/20 bg-bg/40 px-3 py-2 text-xs text-text focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                >
+                  {FREE_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex gap-3 max-w-[92%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                >
+                  <div
+                    className={`rounded-2xl p-4 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                      msg.role === "user"
+                        ? "bg-accent/10 text-text border border-accent/20 shadow-[0_0_15px_rgba(77,226,189,0.15)]"
+                        : "bg-bg/40 text-text border border-border/40"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex gap-3 mr-auto">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="w-20 h-2 rounded-full bg-border/30 animate-pulse" />
+                    <div className="w-12 h-2 rounded-full bg-border/30 animate-pulse" style={{ animationDelay: "0.2s" }}</div>
+                  </div>
+                </div>
+              )}
+              {serverError && (
+                <div className="flex gap-3 mr-auto">
+                  <div className="rounded-2xl p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm shadow-sm">
+                    {serverError}
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="p-4 border-t border-accent/20 bg-bg/50 backdrop-blur-sm rounded-b-2xl">
+              <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    className="w-full rounded-xl border border-accent/20 bg-bg/40 px-4 py-3 text-text placeholder-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all placeholder:text-sm"
+                    placeholder="Ask about DevOps, RAID, Proxmox, WireGuard, CI/CD..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="w-12 h-12 rounded-xl bg-accent text-bg border border-accent/30 shadow-[0_0_15px_rgba(77,226,189,0.2)] disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-[0_0_25px_rgba(77,226,189,0.4)] flex items-center justify-center active:scale-95"
+                  aria-label="Send message"
+                >
+                  <Send className="w-5 h-5" aria-hidden="true" />
+                </button>
+              </form>
+              <p className="text-[9px] text-muted/50 mt-2 text-center">
+                AI responses are suggestions. Verify commands in a lab before production use.
+              </p>
+            </div>
           </div>
         </div>
       )}

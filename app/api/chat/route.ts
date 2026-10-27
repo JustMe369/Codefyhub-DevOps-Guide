@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { readFile } from "fs/promises";
+import { readFileSync } from "fs";
 import { join } from "path";
 
 // Ordered list of free models to try. If one returns 404 (unavailable), fall back to the next.
@@ -51,7 +51,7 @@ export const runtime = "nodejs";
 let projectKnowledge = "";
 try {
   // This runs at build/deploy time; the file is bundled into the deployment
-  projectKnowledge = require("fs").readFileSync(join(process.cwd(), "project-knowledge.md"), "utf8");
+  projectKnowledge = readFileSync(join(process.cwd(), "project-knowledge.md"), "utf8");
 } catch {
   projectKnowledge = "";
 }
@@ -102,7 +102,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Resolve model: use client model if allowed, else fall back through the free model list
   const requestedModel = model ?? "";
-  const resolvedModel = FREE_MODELS.includes(requestedModel) ? requestedModel : FREE_MODELS[0];
+  const modelCandidates = FREE_MODELS.includes(requestedModel)
+    ? [requestedModel, ...FREE_MODELS.filter((candidate) => candidate !== requestedModel)]
+    : FREE_MODELS;
 
   // Build system prompt with project knowledge base
   const systemPrompt = `You are the Codefyhub DevOps Guide assistant — an expert AI assistant for the Codefyhub DevOps Guide knowledge system.
@@ -122,7 +124,7 @@ INSTRUCTIONS:
 
   // Try models in order; fall back on 404 (model unavailable) or 429 (rate limited)
   let lastError: string | null = null;
-  for (const candidateModel of FREE_MODELS) {
+  for (const candidateModel of modelCandidates) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s upstream timeout
