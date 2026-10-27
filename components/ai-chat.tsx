@@ -153,7 +153,7 @@ export function AIChat() {
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
   const [quickActionTargetId, setQuickActionTargetId] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [streamingEnabled, setStreamingEnabled] = useState(true);
+  const streamingEnabled = true;
   const [feedbackState, setFeedbackState] = useState<Record<string, "up" | "down">>({});
   const [selectedModel, setSelectedModel] = useState("openrouter/free");
 
@@ -915,15 +915,6 @@ export function AIChat() {
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setStreamingEnabled((prev) => !prev)}
-                  className="w-9 h-9 rounded-xl bg-bg/50 border border-border/40 text-muted/60 hover:bg-accent/5 hover:text-accent hover:border-accent/30 active:scale-95 transition-all duration-200 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-1"
-                  title={streamingEnabled ? "Disable streaming" : "Enable streaming"}
-                  aria-label={streamingEnabled ? "Disable streaming" : "Enable streaming"}
-                >
-                  <Loader2 className={`w-4 h-4 ${streamingEnabled ? "animate-spin" : ""}`} aria-hidden="true" />
-                </button>
               </div>
 
               <p className="text-[9px] text-muted/40 mt-2 text-center animate-pulse">
