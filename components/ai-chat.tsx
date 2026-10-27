@@ -1,17 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, X, Send, History, Monitor } from "lucide-react";
+import { Bot, X, Send, History } from "lucide-react";
 
 type Message = { role: "user" | "assistant"; content: string };
-
-const FREE_MODELS = [
-  { id: "openrouter/free", label: "Auto (Best Available)" },
-  { id: "meta-llama/llama-3.1-8b-instruct:free", label: "Llama 3.1 8B" },
-  { id: "microsoft/phi-3-mini-128k-instruct:free", label: "Phi-3 Mini" },
-  { id: "qwen/qwen-2.5-7b-instruct:free", label: "Qwen 2.5 7B" },
-  { id: "google/gemma-2-9b-it:free", label: "Gemma 2 9B" },
-];
 
 const STORAGE_KEY = "devops-guide:ai-chat";
 
@@ -24,7 +16,6 @@ const DEFAULT_MESSAGES: Message[] = [
 
 export function AIChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(FREE_MODELS[0].id);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -79,7 +70,7 @@ export function AIChat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg], model: selectedModel }),
+        body: JSON.stringify({ messages: [...messages, userMsg] }),
       });
 
       const body = (await response.json()) as {
@@ -166,25 +157,6 @@ export function AIChat() {
               </div>
             </div>
 
-            {/* Model selector */}
-            <div className="px-5 py-3 border-b border-accent/20 bg-bg/30 flex-shrink-0 animate-[fadeIn_0.6s_ease-out]">
-              <div className="flex items-center gap-3">
-                <Monitor className="w-3.5 h-3.5 text-accent/50" aria-hidden="true" />
-                <label className="text-[10px] text-muted uppercase tracking-wider">Model</label>
-                <select
-                  className="flex-1 rounded-lg border border-accent/20 bg-bg/40 px-3 py-2 text-xs text-text focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all duration-200"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                >
-                  {FREE_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             {/* Messages - THE SCROLLABLE AREA */}
             <div className="flex-1 min-h-[0px] overflow-y-auto p-5 space-y-4 custom-scrollbar overflow-scroll">
               {messages.map((msg, idx) => (
@@ -233,35 +205,29 @@ export function AIChat() {
             </div>
 
             {/* Input - fixed height at bottom */}
-            <div className="p-4 border-t border-accent/20 bg-bg/80 backdrop-blur-md rounded-b-2xl flex-shrink-0 animate-[fadeInUp_0.5s_ease-out]">
+            <div className="p-4 border-t border-accent/20 bg-bg/90 backdrop-blur-xl rounded-b-2xl flex-shrink-0 animate-[fadeInUp_0.5s_ease-out]">
               <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
                 <div className="relative flex-1 group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-accent/20 via-transparent to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl border border-accent/40"></div>
                   <input
-                    className="w-full rounded-xl border border-accent/20 bg-bg/40 px-4 py-3.5 text-text placeholder-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all duration-200 placeholder:text-sm"
+                    className="w-full rounded-xl border border-accent/20 bg-bg/60 px-4 py-4 text-text placeholder:text-muted/50 focus:outline-none focus:ring-0 focus:border-accent/60 focus:bg-bg/80 transition-all duration-300 selection:bg-accent/30 selection:text-text"
                     placeholder="Ask about DevOps, RAID, Proxmox, WireGuard, CI/CD..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     disabled={isLoading}
                   />
-                <div className="absolute right-3 top-1/2 -mt-2 text-accent/40 group-focus-within:text-accent transition-colors">
-                  {(() => {
-                    const m = selectedModel;
-                    if (m === "openrouter/free") return "Auto";
-                    const parts = m.split("/").pop()?.split(":")[0] ?? "";
-                    return parts.charAt(0).toUpperCase() + parts.slice(1);
-                  })()}
                 </div>
-                </div>
+
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="w-13 h-13 rounded-2xl bg-accent text-bg border border-accent/30 shadow-[0_0_20px_rgba(77,226,189,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-[0_0_30px_rgba(77,226,189,0.5)] flex items-center justify-center active:scale-95 group-hover:shadow-[0_0_25px_rgba(77,226,189,0.4)]"
+                  className="w-13 h-13 rounded-2xl bg-accent text-bg border border-accent/40 shadow-[0_0_20px_rgba(77,226,189,0.3)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 hover:shadow-[0_0_30px_rgba(77,226,189,0.5)] hover:scale-105 active:scale-95 flex items-center justify-center group-hover:bg-accent/90"
                   aria-label="Send message"
                 >
                   <Send className="w-5 h-5" aria-hidden="true" />
                 </button>
               </form>
-              <p className="text-[9px] text-muted/50 mt-2 text-center animate-pulse">
+              <p className="text-[9px] text-muted/40 mt-2 text-center animate-pulse">
                 AI responses are suggestions. Verify commands in a lab before production use.
               </p>
             </div>
