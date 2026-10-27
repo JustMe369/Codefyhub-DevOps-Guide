@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
-// Server-side allowlist of models. Clients cannot request arbitrary models.
-const ALLOWED_MODELS = new Set([
+// Ordered list of free models to try. If one returns 404 (unavailable), fall back to the next.
+const FREE_MODELS = [
+  "openrouter/free", // auto-router — always picks an available free model
   "meta-llama/llama-3.1-8b-instruct:free",
-  "meta-llama/llama-3.1-70b-instruct:free",
   "microsoft/phi-3-mini-128k-instruct:free",
-]);
+  "qwen/qwen-2.5-7b-instruct:free",
+  "google/gemma-2-9b-it:free",
+];
 
 // Rate limiting: max requests per window per IP.
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -28,13 +32,13 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfterMs?: number }
 }
 
 // Schema bounds
-const MAX_MESSAGES = 20;
-const MAX_MESSAGE_CONTENT_LENGTH = 2000;
+const MAX_MESSAGES = 30;
+const MAX_MESSAGE_CONTENT_LENGTH = 3000;
 
 const ChatRequest = z.object({
   messages: z.array(
     z.object({
-      role: z.enum(["user", "assistant"]), // system is not allowed from client
+      role: z.enum(["user", "assistant"]),
       content: z.string().min(1).max(MAX_MESSAGE_CONTENT_LENGTH),
     })
   ),
@@ -42,6 +46,15 @@ const ChatRequest = z.object({
 });
 
 export const runtime = "nodejs";
+
+// Load project knowledge base at cold start
+let projectKnowledge = "";
+try {
+  // This runs at build/deploy time; the file is bundled into the deployment
+  projectKnowledge = require("fs").readFileSync(join(process.cwd(), "project-knowledge.md"), "utf8");
+} catch {
+  projectKnowledge = "";
+}
 
 export async function POST(request: Request): Promise<NextResponse> {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -87,62 +100,92 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Schema already rejects system messages; server controls the system prompt
   const cleanMessages = boundedMessages;
 
-  // Resolve model: use default if client requests a disallowed model
-  const resolvedModel = ALLOWED_MODELS.has(model ?? "") ? model : "meta-llama/llama-3.1-8b-instruct:free";
+  // Resolve model: use client model if allowed, else fall back through the free model list
+  const requestedModel = model ?? "";
+  const resolvedModel = FREE_MODELS.includes(requestedModel) ? requestedModel : FREE_MODELS[0];
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25_000); // 25s upstream timeout
+  // Build system prompt with project knowledge base
+  const systemPrompt = `You are the Codefyhub DevOps Guide assistant — an expert AI assistant for the Codefyhub DevOps Guide knowledge system.
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://codefyhub-dev-ops-guide.vercel.app",
-        "X-Title": "Codefyhub-DevOps Guide AI Assistant",
-      },
-      body: JSON.stringify({
-        model: resolvedModel,
-        messages: [
-          {
-            role: "system",
-            content: `You are the Codefyhub DevOps Guide assistant. Help users with infrastructure, storage, virtualization, networking, CI/CD, security, and operations questions. Be concise, technical, and safety-conscious. Always remind users to verify commands in a lab before production use. Reference the Codefyhub-DevOps Guide content when relevant.`,
-          },
-          ...cleanMessages,
-        ],
-        temperature: 0.3,
-        max_tokens: 1000,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
+PROJECT KNOWLEDGE BASE:
+${projectKnowledge}
 
-    clearTimeout(timeoutId);
+INSTRUCTIONS:
+- Be concise, technical, and safety-conscious
+- Reference specific guide sections, articles, and commands when relevant
+- Always remind users to verify commands in a lab before production use
+- Never present destructive commands without warning, target-verification step, recovery path, and expected outcome
+- Never use real credentials, production identifiers, or private URLs in examples
+- If asked about project internals (structure, stack, commands, sections), reference the knowledge base above
+- If unsure about a specific technical detail, say so rather than guessing
+- Help users choose the right tool, deploy it securely, and validate it works`;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return NextResponse.json(
-        { error: `LLM API error: ${response.status}`, detail: errorText },
-        { status: response.status }
-      );
+  // Try models in order; fall back on 404 (model unavailable) or 429 (rate limited)
+  let lastError: string | null = null;
+  for (const candidateModel of FREE_MODELS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s upstream timeout
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://codefyhub-dev-ops-guide.vercel.app",
+          "X-Title": "Codefyhub-DevOps Guide AI Assistant",
+        },
+        body: JSON.stringify({
+          model: candidateModel,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            ...cleanMessages,
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.status === 404 || response.status === 429) {
+        const errorText = await response.text();
+        lastError = `Model ${candidateModel} unavailable (${response.status}): ${errorText.slice(0, 200)}`;
+        continue; // try next model
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return NextResponse.json(
+          { error: `LLM API error: ${response.status}`, detail: errorText },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        return NextResponse.json({ error: "No response from LLM." }, { status: 502 });
+      }
+
+      return NextResponse.json({ content, model: candidateModel });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        lastError = `Request to ${candidateModel} timed out`;
+        continue;
+      }
+      lastError = error instanceof Error ? error.message : String(error);
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return NextResponse.json({ error: "No response from LLM." }, { status: 502 });
-    }
-
-    return NextResponse.json({ content });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      return NextResponse.json({ error: "Request timed out. Try again." }, { status: 504 });
-    }
-    return NextResponse.json(
-      { error: "Internal server error", detail: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
   }
+
+  return NextResponse.json(
+    { error: "All available models failed. Last error: " + lastError },
+    { status: 502 }
+  );
 }
