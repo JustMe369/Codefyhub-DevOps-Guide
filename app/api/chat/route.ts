@@ -33,15 +33,16 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfterMs?: number }
 
 // Schema bounds
 const MAX_MESSAGES = 30;
-const MAX_MESSAGE_CONTENT_LENGTH = 3000;
+const MAX_MESSAGE_CONTENT_LENGTH = 5000;
+
+// Lenient schema - accepts messages from client, strips system roles server-side
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]).default("user"),
+  content: z.string().max(MAX_MESSAGE_CONTENT_LENGTH).default(""),
+});
 
 const ChatRequest = z.object({
-  messages: z.array(
-    z.object({
-      role: z.enum(["user", "assistant"]),
-      content: z.string().min(1).max(MAX_MESSAGE_CONTENT_LENGTH),
-    })
-  ),
+  messages: z.array(MessageSchema).max(MAX_MESSAGES).default([]),
   model: z.string().optional(),
 });
 
@@ -50,7 +51,6 @@ export const runtime = "nodejs";
 // Load project knowledge base at cold start
 let projectKnowledge = "";
 try {
-  // This runs at build/deploy time; the file is bundled into the deployment
   projectKnowledge = readFileSync(join(process.cwd(), "project-knowledge.md"), "utf8");
 } catch {
   projectKnowledge = "";
@@ -86,8 +86,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const parsed = ChatRequest.safeParse(body);
   if (!parsed.success) {
+    // Return detailed validation issues for debugging
+    const issues = parsed.error.flatten().fieldErrors;
     return NextResponse.json(
-      { error: "Invalid request format.", issues: parsed.error.flatten() },
+      { 
+        error: "Invalid request format.", 
+        issues,
+        hint: "Ensure messages is an array of {role, content} objects and model is a string.",
+      },
       { status: 400 }
     );
   }
@@ -97,8 +103,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Bound message count (server-side, ignore extras)
   const boundedMessages = messages.slice(-MAX_MESSAGES);
 
-  // Schema already rejects system messages; server controls the system prompt
-  const cleanMessages = boundedMessages;
+  // Strip system messages from client; server controls the system prompt
+  const cleanMessages = boundedMessages.filter((m) => m.role !== "system");
 
   // Resolve model: use client model if allowed, else fall back through the free model list
   const requestedModel = model ?? "";
@@ -127,7 +133,7 @@ INSTRUCTIONS:
   for (const candidateModel of modelCandidates) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s upstream timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -158,7 +164,7 @@ INSTRUCTIONS:
       if (response.status === 404 || response.status === 429) {
         const errorText = await response.text();
         lastError = `Model ${candidateModel} unavailable (${response.status}): ${errorText.slice(0, 200)}`;
-        continue; // try next model
+        continue;
       }
 
       if (!response.ok) {

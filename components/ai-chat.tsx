@@ -243,9 +243,14 @@ export function AIChat() {
                     onChange={(e) => setInput(e.target.value)}
                     disabled={isLoading}
                   />
-                  <div className="absolute right-3 top-1/2 -mt-2 text-accent/40 group-focus-within:text-accent transition-colors">
-                    {selectedModel.split("/").pop()?.split(":")[0] ?? ""}
-                  </div>
+                <div className="absolute right-3 top-1/2 -mt-2 text-accent/40 group-focus-within:text-accent transition-colors">
+                  {(() => {
+                    const m = selectedModel;
+                    if (m === "openrouter/free") return "Auto";
+                    const parts = m.split("/").pop()?.split(":")[0] ?? "";
+                    return parts.charAt(0).toUpperCase() + parts.slice(1);
+                  })()}
+                </div>
                 </div>
                 <button
                   type="submit"
