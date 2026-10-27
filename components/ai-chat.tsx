@@ -116,7 +116,7 @@ export function AIChat() {
       {/* Animated gradient mesh background */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-text/5 blur-[120px] animate-pulse" style={{ animationDelay: "2s" }}</div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-text/5 blur-[120px] animate-pulse" style={{ animationDelay: "2s" }}></div>
         <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-accent/10 blur-[80px]"></div>
       </div>
 
@@ -205,7 +205,7 @@ export function AIChat() {
                 <div className="flex gap-3 mr-auto">
                   <div className="flex flex-col gap-1.5">
                     <div className="w-20 h-2 rounded-full bg-border/30 animate-pulse" />
-                    <div className="w-12 h-2 rounded-full bg-border/30 animate-pulse" style={{ animationDelay: "0.2s" }}</div>
+                    <div className="w-12 h-2 rounded-full bg-border/30 animate-pulse" style={{ animationDelay: "0.2s" }}></div>
                   </div>
                 </div>
               )}
