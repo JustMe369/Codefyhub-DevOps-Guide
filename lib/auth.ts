@@ -19,6 +19,7 @@ function createAuth() {
     advanced: { database: { joins: true } },
     emailAndPassword: {
       enabled: true,
+      disableSignUp: true,
       minPasswordLength: 12,
     },
     socialProviders:
