@@ -122,41 +122,43 @@ export function AIChat() {
 
       {/* Floating toggle button */}
       <button
-        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-11 h-11 rounded-full bg-accent text-bg border border-accent/30 shadow-[0_0_20px_rgba(77,226,189,0.3)] hover:bg-accent/90 hover:shadow-[0_0_30px_rgba(77,226,189,0.5)] transition-all active:scale-95"
+        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 rounded-full bg-accent text-bg border border-accent/30 shadow-[0_0_20px_rgba(77,226,189,0.4)] hover:bg-accent/90 hover:shadow-[0_0_30px_rgba(77,226,189,0.6)] transition-all duration-300 active:scale-95 group"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? "Close AI assistant" : "Open AI assistant"}
       >
-        <Bot className="w-5 h-5" aria-hidden="true" />
+        <div className="relative">
+          <Bot className="w-5 h-5" aria-hidden="true" />
+          <div className="absolute -right-1 -bottom-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-bg animate-pulse" />
+        </div>
       </button>
 
-      {/* Modern glassmorphism chat popup - FIXED SCROLLING */}
+      {/* Modern glassmorphism chat popup */}
       {isOpen && (
         <div className="fixed bottom-16 right-6 z-50 w-96 max-w-[92vw] h-[80vh] rounded-2xl border border-accent/20 bg-bg/80 backdrop-blur-xl shadow-2xl shadow-accent/10 overflow-hidden flex flex-col">
-          {/* Entrance animation wrapper */}
-          <div className="animate-[slideUp_0.4s_ease-out] flex flex-col h-full">
-            {/* Header - fixed height */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/50 backdrop-blur-sm rounded-t-2xl flex-shrink-0">
+          <div className="animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)] flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/50 backdrop-blur-sm rounded-t-2xl flex-shrink-0 animate-[fadeInDown_0.4s_ease-out]">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/40 shadow-[0_0_15px_rgba(77,226,189,0.2)]">
+                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/40 shadow-[0_0_15px_rgba(77,226,189,0.2)] animate-ping">
                   <Bot className="w-4 h-4 text-accent" aria-hidden="true" />
                 </div>
-                <div>
+                <div className="flex flex-col">
                   <span className="font-bold text-sm text-text leading-tight">Codefyhub AI</span>
-                  <span className="text-[10px] text-accent/60 font-medium block mt-0.5">DevOps Assistant</span>
+                  <span className="text-[10px] text-accent/60 font-medium block mt-0.5 animate-pulse">DevOps Assistant</span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={clearChat}
-                  className="w-8 h-8 rounded-lg bg-bg/40 hover:bg-accent/10 border border-accent/30 text-accent transition-all flex items-center justify-center active:scale-95"
+                  className="w-9 h-9 rounded-lg bg-bg/40 hover:bg-accent/10 border border-accent/30 text-accent transition-all duration-200 flex items-center justify-center active:scale-95 group-hover:shadow-[0_0_15px_rgba(77,226,189,0.3)]"
                   title="Clear conversation"
                   aria-label="Clear chat"
                 >
-                  <History className="w-3.5 h-3.5" aria-hidden="true" />
+                  <History className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-8 h-8 rounded-lg bg-bg/40 hover:bg-red-500/10 border border-red-500/30 text-red-500 transition-all flex items-center justify-center active:scale-95"
+                  className="w-9 h-9 rounded-lg bg-bg/40 hover:bg-red-500/10 border border-red-500/30 text-red-500 transition-all duration-200 flex items-center justify-center active:scale-95 group-hover:shadow-[0_0_15px_rgba(239,68,68,0.3)]"
                   aria-label="Close chat"
                 >
                   <X className="w-4 h-4" />
@@ -164,13 +166,13 @@ export function AIChat() {
               </div>
             </div>
 
-            {/* Model selector - fixed height */}
-            <div className="px-5 py-3 border-b border-accent/20 bg-bg/30 flex-shrink-0">
+            {/* Model selector */}
+            <div className="px-5 py-3 border-b border-accent/20 bg-bg/30 flex-shrink-0 animate-[fadeIn_0.6s_ease-out]">
               <div className="flex items-center gap-3">
                 <Monitor className="w-3.5 h-3.5 text-accent/50" aria-hidden="true" />
                 <label className="text-[10px] text-muted uppercase tracking-wider">Model</label>
                 <select
-                  className="flex-1 rounded-lg border border-accent/20 bg-bg/40 px-3 py-2 text-xs text-text focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  className="flex-1 rounded-lg border border-accent/20 bg-bg/40 px-3 py-2 text-xs text-text focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all duration-200"
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
                 >
@@ -188,13 +190,14 @@ export function AIChat() {
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`flex gap-3 max-w-[92%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                  className={`flex gap-3 max-w-[92%] ${msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"} animate-[fadeInUp_0.4s_ease-out]`}
+                  style={{ animationDelay: `${idx * 0.05}s` }}
                 >
                   <div
-                    className={`rounded-2xl p-4 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                    className={`rounded-2xl p-4 text-sm leading-relaxed whitespace-pre-wrap shadow-sm transition-all duration-300 ${
                       msg.role === "user"
-                        ? "bg-accent/10 text-text border border-accent/20 shadow-[0_0_15px_rgba(77,226,189,0.15)]"
-                        : "bg-bg/40 text-text border border-border/40"
+                        ? "bg-accent/10 text-text border border-accent/20 shadow-[0_0_15px_rgba(77,226,189,0.15)] hover:bg-accent/15"
+                        : "bg-bg/40 text-text border border-border/40 hover:bg-bg/50"
                     }`}
                   >
                     {msg.content}
@@ -202,15 +205,25 @@ export function AIChat() {
                 </div>
               ))}
               {isLoading && (
-                <div className="flex gap-3 mr-auto">
+                <div className="flex gap-3 mr-auto animate-[fadeInUp_0.4s_ease-out]">
                   <div className="flex flex-col gap-1.5">
-                    <div className="w-20 h-2 rounded-full bg-border/30 animate-pulse" />
-                    <div className="w-12 h-2 rounded-full bg-border/30 animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted/60">AI is thinking</span>
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite]" style={{ animationDelay: "0s" }}></div>
+                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite]" style={{ animationDelay: "0.2s" }}></div>
+                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite]" style={{ animationDelay: "0.4s" }}></div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="w-20 h-1.5 rounded-full bg-border/30" />
+                      <div className="w-14 h-1.5 rounded-full bg-border/30" style={{ animationDelay: "0.2s" }} />
+                    </div>
                   </div>
                 </div>
               )}
               {serverError && (
-                <div className="flex gap-3 mr-auto">
+                <div className="flex gap-3 mr-auto animate-[fadeInUp_0.4s_ease-out]">
                   <div className="rounded-2xl p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm shadow-sm">
                     {serverError}
                   </div>
@@ -220,27 +233,30 @@ export function AIChat() {
             </div>
 
             {/* Input - fixed height at bottom */}
-            <div className="p-4 border-t border-accent/20 bg-bg/80 backdrop-blur-md rounded-b-2xl flex-shrink-0">
+            <div className="p-4 border-t border-accent/20 bg-bg/80 backdrop-blur-md rounded-b-2xl flex-shrink-0 animate-[fadeInUp_0.5s_ease-out]">
               <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
-                <div className="relative flex-1">
+                <div className="relative flex-1 group">
                   <input
-                    className="w-full rounded-xl border border-accent/20 bg-bg/40 px-4 py-3 text-text placeholder-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all placeholder:text-sm"
+                    className="w-full rounded-xl border border-accent/20 bg-bg/40 px-4 py-3.5 text-text placeholder-text-muted/40 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all duration-200 placeholder:text-sm"
                     placeholder="Ask about DevOps, RAID, Proxmox, WireGuard, CI/CD..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     disabled={isLoading}
                   />
+                  <div className="absolute right-3 top-1/2 -mt-2 text-accent/40 group-focus-within:text-accent transition-colors">
+                    {selectedModel.split("/").pop()?.split(":")[0] ?? ""}
+                  </div>
                 </div>
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="w-12 h-12 rounded-xl bg-accent text-bg border border-accent/30 shadow-[0_0_15px_rgba(77,226,189,0.2)] disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-[0_0_25px_rgba(77,226,189,0.4)] flex items-center justify-center active:scale-95"
+                  className="w-13 h-13 rounded-2xl bg-accent text-bg border border-accent/30 shadow-[0_0_20px_rgba(77,226,189,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-[0_0_30px_rgba(77,226,189,0.5)] flex items-center justify-center active:scale-95 group-hover:shadow-[0_0_25px_rgba(77,226,189,0.4)]"
                   aria-label="Send message"
                 >
                   <Send className="w-5 h-5" aria-hidden="true" />
                 </button>
               </form>
-              <p className="text-[9px] text-muted/50 mt-2 text-center">
+              <p className="text-[9px] text-muted/50 mt-2 text-center animate-pulse">
                 AI responses are suggestions. Verify commands in a lab before production use.
               </p>
             </div>
