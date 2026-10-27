@@ -55,6 +55,7 @@ model Article {
   title               String
   description         String
   body                String           @db.Text
+  embedding           Unsupported("vector(384)")?
   difficulty          Difficulty       @default(FOUNDATION)
   contentType         ContentType      @default(CONCEPT)
   validationStatus    ValidationStatus @default(DRAFT)
