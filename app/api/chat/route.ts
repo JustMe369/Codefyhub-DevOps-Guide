@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { prisma } from "@/lib/prisma";
 
 // Ordered list of free models to try. If one returns 404 (unavailable), fall back to the next.
 const FREE_MODELS = [
@@ -44,6 +45,7 @@ const MessageSchema = z.object({
 const ChatRequest = z.object({
   messages: z.array(MessageSchema).max(MAX_MESSAGES).default([]),
   model: z.string().optional(),
+  language: z.enum(["auto", "en", "ar"]).default("auto"),
 });
 
 export const runtime = "nodejs";
@@ -54,6 +56,101 @@ try {
   projectKnowledge = readFileSync(join(process.cwd(), "project-knowledge.md"), "utf8");
 } catch {
   projectKnowledge = "";
+}
+
+/**
+ * Detect if text contains Arabic characters
+ */
+function isArabic(text: string): boolean {
+  const arabicRegex = /[\u0600-\u06FF]/;
+  return arabicRegex.test(text);
+}
+
+/**
+ * RAG: Retrieve relevant articles from the database based on user query
+ */
+async function retrieveRelevantArticles(query: string, limit: number = 3) {
+  try {
+    // Use Prisma full-text search on title and description
+    const articles = await prisma.article.findMany({
+      where: {
+        status: "PUBLISHED",
+        OR: [
+          { title: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      include: {
+        section: {
+          select: { title: true, slug: true },
+        },
+      },
+      take: limit,
+      orderBy: { order: "asc" },
+    });
+
+    return articles.map((article) => ({
+      title: article.title,
+      section: article.section.title,
+      slug: article.slug,
+      description: article.description,
+      difficulty: article.difficulty,
+      readingMinutes: article.readingMinutes,
+    }));
+  } catch {
+    // If database is not available, return empty
+    return [];
+  }
+}
+
+/**
+ * Build system prompt with RAG context and language awareness
+ */
+function buildSystemPrompt(
+  retrievedArticles: Array<{ title: string; section: string; slug: string; description: string }>,
+  language: "en" | "ar"
+): string {
+  const isArabic = language === "ar";
+
+  const langInstruction = isArabic
+    ? "أجب باللغة العربية الفصحى. استخدم المصطلحات التقنية باللغة الإنجليزية بين قوسين عند الحاجة."
+    : "Answer in English. Use English for all technical terms and commands.";
+
+  const articlesContext = retrievedArticles.length > 0
+    ? `\n\nRELEVANT ARTICLES FROM THE GUIDE:\n${retrievedArticles
+        .map(
+          (a) => `- ${a.title} (Section: ${a.section}): ${a.description || "No description available."}`
+        )
+        .join("\n")}`
+    : "";
+
+  const safetyRules = isArabic
+    ? `- تذكّر دائمًا المستخدم بتجربة الأوامر في مختبر قبل الاستخدام في الإنتاج.
+    - لا تُقدم أوامر مدمّرة دون تحذير، وتحقق من الهدف، ومسار الاسترداد، والنتيجة المتوقعة.
+    - لا تستخدم بيانات اعتماد حقيقية أو معرّفات إنتاجية أو عناوين URL خاصة في الأمثلة.`
+    : `- Always remind users to verify commands in a lab before production use.
+    - Never present destructive commands without warning, target-verification step, recovery path, and expected outcome.
+    - Never use real credentials, production identifiers, or private URLs in examples.`;
+
+  return `You are the Codefyhub DevOps Guide assistant — an expert AI assistant for the Codefyhub DevOps Guide knowledge system.
+
+PROJECT KNOWLEDGE BASE:
+${projectKnowledge}
+
+${articlesContext}
+
+LANGUAGE: ${isArabic ? "Arabic (RTL)" : "English (LTR)"}
+${langInstruction}
+
+INSTRUCTIONS:
+- Be concise, technical, and safety-conscious
+- Reference specific guide sections, articles, and commands when relevant
+- If the user asks in Arabic, respond in Arabic with technical terms in English
+- If the user asks in English, respond in English
+- Auto-detect language from user input and respond in the same language
+- ${safetyRules}
+- If unsure about a specific technical detail, say so rather than guessing
+- Help users choose the right tool, deploy it securely, and validate it works`;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -86,19 +183,18 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const parsed = ChatRequest.safeParse(body);
   if (!parsed.success) {
-    // Return detailed validation issues for debugging
     const issues = parsed.error.flatten().fieldErrors;
     return NextResponse.json(
       { 
         error: "Invalid request format.", 
         issues,
-        hint: "Ensure messages is an array of {role, content} objects and model is a string.",
+        hint: "Ensure messages is an array of {role, content} objects.",
       },
       { status: 400 }
     );
   }
 
-  const { messages, model } = parsed.data;
+  const { messages, model, language } = parsed.data;
 
   // Bound message count (server-side, ignore extras)
   const boundedMessages = messages.slice(-MAX_MESSAGES);
@@ -106,27 +202,32 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Strip system messages from client; server controls the system prompt
   const cleanMessages = boundedMessages.filter((m) => m.role !== "system");
 
+  // Get the last user message for RAG retrieval
+  const lastUserMessage = [...boundedMessages].reverse().find((m) => m.role === "user");
+  const userQuery = lastUserMessage ? lastUserMessage.content : "";
+
+  // RAG: Retrieve relevant articles from the database
+  let retrievedArticles: Array<{ title: string; section: string; slug: string; description: string }> = [];
+  if (userQuery && userQuery.length > 3) {
+    retrievedArticles = await retrieveRelevantArticles(userQuery, 3);
+  }
+
+  // Auto-detect language from user query if set to auto
+  let resolvedLanguage: "en" | "ar" = "en";
+  if (language === "auto" && userQuery) {
+    resolvedLanguage = isArabic(userQuery) ? "ar" : "en";
+  } else if (language === "en" || language === "ar") {
+    resolvedLanguage = language;
+  }
+
   // Resolve model: use client model if allowed, else fall back through the free model list
   const requestedModel = model ?? "";
   const modelCandidates = FREE_MODELS.includes(requestedModel)
     ? [requestedModel, ...FREE_MODELS.filter((candidate) => candidate !== requestedModel)]
     : FREE_MODELS;
 
-  // Build system prompt with project knowledge base
-  const systemPrompt = `You are the Codefyhub DevOps Guide assistant — an expert AI assistant for the Codefyhub DevOps Guide knowledge system.
-
-PROJECT KNOWLEDGE BASE:
-${projectKnowledge}
-
-INSTRUCTIONS:
-- Be concise, technical, and safety-conscious
-- Reference specific guide sections, articles, and commands when relevant
-- Always remind users to verify commands in a lab before production use
-- Never present destructive commands without warning, target-verification step, recovery path, and expected outcome
-- Never use real credentials, production identifiers, or private URLs in examples
-- If asked about project internals (structure, stack, commands, sections), reference the knowledge base above
-- If unsure about a specific technical detail, say so rather than guessing
-- Help users choose the right tool, deploy it securely, and validate it works`;
+  // Build system prompt with RAG context and language awareness
+  const systemPrompt = buildSystemPrompt(retrievedArticles, resolvedLanguage);
 
   // Try models in order; fall back on 404 (model unavailable) or 429 (rate limited)
   let lastError: string | null = null;
@@ -153,7 +254,7 @@ INSTRUCTIONS:
             ...cleanMessages,
           ],
           temperature: 0.3,
-          max_tokens: 1500,
+          max_tokens: 2000,
           stream: false,
         }),
         signal: controller.signal,
@@ -182,7 +283,7 @@ INSTRUCTIONS:
         return NextResponse.json({ error: "No response from LLM." }, { status: 502 });
       }
 
-      return NextResponse.json({ content, model: candidateModel });
+      return NextResponse.json({ content, model: candidateModel, language: resolvedLanguage });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         lastError = `Request to ${candidateModel} timed out`;
