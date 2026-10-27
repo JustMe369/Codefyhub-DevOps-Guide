@@ -841,6 +841,13 @@ table::-webkit-scrollbar-thumb:hover {
 .admin-primary-button, .admin-editor-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #07110e; font: inherit; font-weight: 750; text-decoration: none; cursor: pointer; }
 .admin-primary-button:disabled, .admin-editor-actions button:disabled { cursor: not-allowed; opacity: .45; }
 .admin-auth-card .admin-primary-button { width: 100%; margin-top: 18px; }
+.admin-login-form { display: grid; gap: 12px; margin-top: 20px; }
+.admin-login-form label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.admin-login-form input { width: 100%; padding: 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+.admin-login-form .admin-primary-button { margin-top: 2px; }
+.admin-secondary-button { display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel-2); color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.admin-login-divider { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin: 16px 0 0; color: var(--muted); font-size: 12px; }
+.admin-login-divider::before, .admin-login-divider::after { height: 1px; background: var(--border); content: ""; }
 .admin-spin { animation: admin-spin .8s linear infinite; }
 @keyframes admin-spin { to { transform: rotate(360deg); } }
 .admin-error { padding: 10px 12px; border: 1px solid rgba(248, 113, 113, .35); border-radius: 8px; background: rgba(127, 29, 29, .18); color: #fca5a5 !important; }

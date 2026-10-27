@@ -17,6 +17,10 @@ function createAuth() {
   return betterAuth({
     database: prismaAdapter(prisma, { provider: "postgresql" }),
     advanced: { database: { joins: true } },
+    emailAndPassword: {
+      enabled: true,
+      minPasswordLength: 12,
+    },
     socialProviders:
       process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
         ? {
