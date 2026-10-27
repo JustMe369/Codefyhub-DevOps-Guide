@@ -5,11 +5,12 @@ import {
   Bot,
   X,
   Send,
-  History,
   Copy,
   Loader2,
   RotateCcw,
   Download,
+  Sparkles,
+  Trash2,
   Type,
   ThumbsUp,
   ThumbsDown,
@@ -314,7 +315,7 @@ export function AIChat() {
               }
               try {
                 const data = JSON.parse(dataStr);
-                const content = data.choices?.[0]?.delta?.content;
+                const content = data.content ?? data.choices?.[0]?.delta?.content;
                 if (content) {
                   setStreamingContent((prev) => prev + content);
                   setMessages((prev) =>
@@ -426,7 +427,7 @@ export function AIChat() {
             }
             try {
               const data = JSON.parse(dataStr);
-              const content = data.choices?.[0]?.delta?.content;
+              const content = data.content ?? data.choices?.[0]?.delta?.content;
               if (content) {
                 setStreamingContent((prev) => prev + content);
                 setMessages((prev) =>
@@ -467,9 +468,10 @@ export function AIChat() {
       );
       setStreamingMessageId("");
     } finally {
-      if (!streaming) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
+      setStreaming(false);
+      setStreamingContent("");
+      setStreamingMessageId("");
       abortControllerRef.current = null;
     }
   }
@@ -555,7 +557,7 @@ export function AIChat() {
               }
               try {
                 const data = JSON.parse(dataStr);
-                const content = data.choices?.[0]?.delta?.content;
+                const content = data.content ?? data.choices?.[0]?.delta?.content;
                 if (content) {
                   setStreamingContent((prev) => prev + content);
                   setMessages((prev) =>
@@ -607,7 +609,7 @@ export function AIChat() {
       <button
         className={`fixed ${
           isRtl ? "bottom-6 left-6" : "bottom-6 right-6"
-        } z-[70] pointer-events-auto flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-accent via-accent/90 to-accent/70 text-bg shadow-[0_0_30px_rgba(77,226,189,0.6)] hover:shadow-[0_0_50px_rgba(77,226,189,0.9)] hover:scale-105 active:scale-95 transition-all duration-300 border border-accent/50`}
+        } z-[70] pointer-events-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/50 bg-gradient-to-br from-accent via-accent/90 to-accent/70 text-bg shadow-[0_14px_35px_rgba(77,226,189,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(77,226,189,0.5)] active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg`}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? "Close AI assistant" : "Open AI assistant"}
         type="button"
@@ -623,97 +625,61 @@ export function AIChat() {
         <div
           className={`fixed bottom-16 ${
             isRtl ? "left-6" : "right-6"
-          } z-50 w-96 max-w-[92vw] h-[80vh] rounded-2xl border border-accent/20 bg-bg/80 backdrop-blur-xl shadow-2xl shadow-accent/10 overflow-hidden flex flex-col transition-all duration-300 ${
+          } z-50 flex h-[min(760px,calc(100vh-6rem))] w-[min(42rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-3xl border border-accent/20 bg-bg/90 shadow-2xl shadow-black/30 backdrop-blur-xl transition-all duration-300 ${
             detectedLanguage === "ar" ? "rtl" : "ltr"
           }`}
           dir={detectedLanguage === "ar" ? "rtl" : "ltr"}
         >
-          <div className="animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)] flex flex-col h-full">
+          <div className="animate-[slideUp_0.5s_ease-out] flex h-full flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/60 backdrop-blur-xl rounded-t-2xl flex-shrink-0 relative overflow-hidden">
-              <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-transparent via-accent to-transparent opacity-70" />
-              
-              <div className="flex items-center gap-4 relative z-10">
-                {/* AI Avatar */}
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-accent via-accent/80 to-accent/60 flex items-center justify-center shadow-[0_0_20px_rgba(77,226,189,0.3)] border border-accent/40">
-                    <Bot className="w-5 h-5 text-bg" aria-hidden="true" />
+            <div className="relative shrink-0 overflow-hidden border-b border-accent/20 bg-gradient-to-br from-accent/10 via-bg/90 to-bg px-3 py-3 sm:px-5 sm:py-4">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
+              <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-accent/50 bg-gradient-to-br from-accent via-accent/85 to-accent/60 text-bg shadow-[0_10px_26px_rgba(77,226,189,0.3)]">
+                    <Bot className="h-5 w-5" aria-hidden="true" />
+                    <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-bg ${streaming ? "animate-pulse bg-amber-400" : "bg-emerald-400"}`} aria-label={streaming ? "AI thinking" : "AI online"} />
                   </div>
-                  {/* Status indicator */}
-                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-bg ${
-                    streaming ? "bg-red-500 animate-pulse" : "bg-accent"
-                  }`} aria-label={streaming ? "AI thinking" : "AI online"} />
-                </div>
-                
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-text leading-tight">Codefyhub AI</span>
-                    {streaming && (
-                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" aria-label="AI thinking" />
-                    )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-sm font-bold tracking-tight text-text">Codefyhub AI Assist</h2>
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                    </div>
+                    <p className="mt-0.5 truncate text-[11px] text-muted/75">{streaming ? "Working on your answer…" : "Grounded in the DevOps Guide"}</p>
                   </div>
-                  <span className="text-[10px] text-accent/70 font-medium block mt-0.5 tracking-wider uppercase">
-                    DevOps Assistant
-                  </span>
-                  <span className="text-[9px] text-muted/50 block mt-0.5">
-                    {streaming ? "Thinking…" : "RAG enabled · 62 articles"}
-                  </span>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-1.5 relative z-10">
-                {/* Model pill selector */}
-                <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-bg/60 border border-accent/20 backdrop-blur-xl shadow-sm">
-                  <span className="text-[9px] font-medium text-muted/60 uppercase tracking-tighter">Model</span>
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="text-[10px] bg-transparent border-none text-text cursor-pointer focus:outline-none focus:ring-0 hover:text-accent transition-colors appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%234de2bd%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%3E%3C/polyline%3E%3C/svg%22)] no-repeat right-1.5 center' pr-6]"
-                    title="Select AI model"
-                    aria-label="Select AI model"
-                  >
-                    <option value="openrouter/free">Auto</option>
-                    <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1</option>
-                    <option value="microsoft/phi-3-mini-128k-instruct:free">Phi-3</option>
-                    <option value="qwen/qwen-2.5-7b-instruct:free">Qwen 2.5</option>
-                    <option value="google/gemma-2-9b-it:free">Gemma 2</option>
-                  </select>
-                </div>
-                
-                {/* Language badge */}
-                <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border uppercase tracking-tighter ${
-                  detectedLanguage === "ar"
-                    ? "border-accent/30 bg-accent/5 text-accent shadow-[0_0_10px_rgba(77,226,189,0.2)]"
-                    : "border-border/30 bg-bg/5 text-muted/80"
-                }`}>
-                  {detectedLanguage === "ar" ? "العربية" : "English"}
-                </span>
-                
-                {/* Action buttons group */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setShowExportDialog(true)}
-                    className="w-9 h-9 rounded-xl bg-bg/50 border border-border/40 text-muted/60 hover:bg-accent/5 hover:text-accent hover:border-accent/40 hover:shadow-[0_0_12px_rgba(77,226,189,0.15)] active:scale-90 transition-all duration-200 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-1"
-                    title="Export conversation"
-                    aria-label="Export conversation"
-                  >
-                    <Download className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    onClick={clearChat}
-                    className="w-9 h-9 rounded-xl bg-bg/50 border border-border/40 text-muted/60 hover:bg-red-500/5 hover:text-red-500 hover:border-red-500/30 hover:shadow-[0_0_12px_rgba(239,68,68,0.1)] active:scale-90 transition-all duration-200 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-1"
-                    title="Clear conversation"
-                    aria-label="Clear chat"
-                  >
-                    <History className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] active:scale-90 transition-all duration-200 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:ring-offset-1"
-                    aria-label="Close chat"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                <div className="flex min-w-0 items-center gap-2 sm:justify-end">
+                  <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border/60 bg-bg/70 px-2.5 py-2 text-[11px] shadow-sm transition-colors focus-within:border-accent/70 sm:max-w-48">
+                    <span className="shrink-0 font-medium text-muted/70">Model</span>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      className="min-w-0 flex-1 cursor-pointer appearance-none bg-transparent pr-3 text-right font-semibold text-text outline-none transition-colors hover:text-accent"
+                      title="Select AI model"
+                      aria-label="Select AI model"
+                    >
+                      <option value="openrouter/free">Auto select</option>
+                      <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1</option>
+                      <option value="microsoft/phi-3-mini-128k-instruct:free">Phi-3 Mini</option>
+                      <option value="qwen/qwen-2.5-7b-instruct:free">Qwen 2.5</option>
+                      <option value="google/gemma-2-9b-it:free">Gemma 2</option>
+                    </select>
+                  </label>
+                  <span className="hidden rounded-lg border border-accent/25 bg-accent/10 px-2 py-2 text-[10px] font-bold text-accent sm:inline-block">
+                    {detectedLanguage === "ar" ? "العربية" : "EN"}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1 border-l border-border/60 pl-2">
+                    <button onClick={() => setShowExportDialog(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-bg/60 text-muted transition-colors hover:border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" title="Export conversation" aria-label="Export conversation">
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button onClick={clearChat} className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-bg/60 text-muted transition-colors hover:border-red-400/50 hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400" title="Clear conversation" aria-label="Clear chat">
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button onClick={() => setIsOpen(false)} className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-bg/60 text-muted transition-colors hover:border-text/40 hover:bg-text/10 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" title="Close assistant" aria-label="Close chat">
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -924,6 +890,12 @@ export function AIChat() {
                     }
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      void handleSend();
+                    }
+                  }}
                     disabled={isLoading || streaming}
                     dir={detectedLanguage === "ar" ? "rtl" : "ltr"}
                   />

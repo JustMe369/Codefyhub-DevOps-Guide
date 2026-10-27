@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -995,17 +996,6 @@ table::-webkit-scrollbar-thumb:hover {
   }
 }
 
-@keyframes slideUpCubic {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -1056,10 +1046,6 @@ table::-webkit-scrollbar-thumb:hover {
 }
 
 /* Animation utility classes */
-.animate-slideUp_cubic-bezier-0\.16,1,0\.3,1 {
-  animation: slideUpCubic 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 .animate-fadeInDown_ease-out {
   animation: fadeInDown 0.4s ease-out;
 }
@@ -1092,7 +1078,6 @@ html {
 }
 
 /* === Arabic RTL Font Support === */
-@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap");
 
 html[dir="rtl"],
 html[lang="ar"],
