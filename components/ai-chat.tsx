@@ -15,53 +15,53 @@ const FREE_MODELS = [
 
 const STORAGE_KEY = "devops-guide:ai-chat";
 
+const DEFAULT_MESSAGES: Message[] = [
+  {
+    role: "assistant",
+    content: "Hi! I'm the Codefyhub DevOps Guide assistant. I have full knowledge of the project's 12 sections, 62 articles, and all technical documentation. Ask me about infrastructure, storage, networking, CI/CD, security, or operations.",
+  },
+];
+
 export function AIChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(FREE_MODELS[0].id);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>(DEFAULT_MESSAGES);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hydrated, setHydrated] = useState(false);
 
-  // Load persisted messages from localStorage on mount
-  const [messages, setMessages] = useState<Message[]>(() => {
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
       }
     } catch {
       // Ignore storage errors
     }
-    return [
-      {
-        role: "assistant",
-        content: "Hi! I'm the Codefyhub DevOps Guide assistant. I have full knowledge of the project's 12 sections, 62 articles, and all technical documentation. Ask me about infrastructure, storage, networking, CI/CD, security, or operations.",
-      },
-    ];
-  });
+    setHydrated(true);
+  }, []);
 
-  // Persist messages to localStorage whenever they change
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch {
       // Ignore storage errors
     }
-  }, [messages]);
+  }, [messages, hydrated]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
   const clearChat = useCallback(() => {
-    setMessages([
-      {
-        role: "assistant",
-        content: "Chat cleared. How can I help you with the Codefyhub DevOps Guide?",
-      },
-    ]);
+    setMessages([DEFAULT_MESSAGES[0]]);
     setServerError(null);
   }, []);
 
@@ -129,20 +129,20 @@ export function AIChat() {
         <Bot className="w-5 h-5" aria-hidden="true" />
       </button>
 
-      {/* Modern glassmorphism chat popup */}
+      {/* Modern glassmorphism chat popup - FIXED SCROLLING */}
       {isOpen && (
-        <div className="fixed bottom-16 right-6 z-50 w-96 flex flex-col max-h-[75vh] rounded-2xl border border-accent/20 bg-bg/70 backdrop-blur-xl shadow-2xl shadow-accent/10">
-          {/* Entrance animation wrapper */}
-          <div className="animate-[slideUp_0.4s_ease-out]">
+        <div className="fixed bottom-16 right-6 z-50 w-96 max-w-[90vw] flex flex-col max-h-[80vh] rounded-2xl border border-accent/20 bg-bg/80 backdrop-blur-xl shadow-2xl shadow-accent/10">
+          {/* Entrance animation */}
+          <div className="animate-[slideUp_0.4s_ease-out] flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/50 backdrop-blur-sm rounded-t-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/50 backdrop-blur-sm rounded-t-2xl flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center border border-accent/40 shadow-[0_0_15px_rgba(77,226,189,0.2)]">
                   <Bot className="w-4 h-4 text-accent" aria-hidden="true" />
                 </div>
                 <div>
                   <span className="font-bold text-sm text-text leading-tight">Codefyhub AI</span>
-                  <span className="text-[10px] text-accent/60 font-medium mt-0.5 block">DevOps Assistant</span>
+                  <span className="text-[10px] text-accent/60 font-medium block mt-0.5">DevOps Assistant</span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
@@ -165,7 +165,7 @@ export function AIChat() {
             </div>
 
             {/* Model selector */}
-            <div className="px-5 py-3 border-b border-accent/20 bg-bg/30">
+            <div className="px-5 py-3 border-b border-accent/20 bg-bg/30 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <Monitor className="w-3.5 h-3.5 text-accent/50" aria-hidden="true" />
                 <label className="text-[10px] text-muted uppercase tracking-wider">Model</label>
@@ -183,8 +183,8 @@ export function AIChat() {
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+            {/* Messages - SCROLLABLE AREA */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-4 custom-scrollbar">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
@@ -219,8 +219,8 @@ export function AIChat() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="p-4 border-t border-accent/20 bg-bg/50 backdrop-blur-sm rounded-b-2xl">
+            {/* Input - FIXED POSITION AT BOTTOM */}
+            <div className="p-4 border-t border-accent/20 bg-bg/80 backdrop-blur-md rounded-b-2xl flex-shrink-0">
               <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
                 <div className="relative flex-1">
                   <input

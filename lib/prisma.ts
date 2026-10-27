@@ -9,7 +9,10 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is not configured.");
 }
 
-const adapter = new PrismaPg({ connectionString: databaseUrl });
+const adapter = new PrismaPg({
+  connectionString: databaseUrl,
+  max: 1,
+});
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
