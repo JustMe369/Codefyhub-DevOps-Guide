@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Github, LoaderCircle } from "lucide-react";
+import { CircleUserRound, LoaderCircle } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 export function SignInCard({ configured }: { configured: boolean }) {
@@ -25,7 +25,7 @@ export function SignInCard({ configured }: { configured: boolean }) {
         <h1 id="admin-sign-in-title">Codefyhub administration</h1>
         <p>Sign in with an explicitly allowlisted GitHub identity. Every content change is revisioned and audited.</p>
         <button type="button" className="admin-primary-button" onClick={signIn} disabled={!configured || pending}>
-          {pending ? <LoaderCircle size={18} className="admin-spin" /> : <Github size={18} />}
+          {pending ? <LoaderCircle size={18} className="admin-spin" /> : <CircleUserRound size={18} />}
           Continue with GitHub
         </button>
         {!configured && <p className="admin-error">GitHub authentication is not configured. See <code>.env.example</code>.</p>}
