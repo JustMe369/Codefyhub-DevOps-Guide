@@ -13,41 +13,53 @@ function configuredAdminEmails() {
   );
 }
 
-export const auth = betterAuth({
-  database: prismaAdapter(prisma, { provider: "postgresql" }),
-  advanced: { database: { joins: true } },
-  socialProviders:
-    process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
-      ? {
-          github: {
-            clientId: process.env.GITHUB_CLIENT_ID,
-            clientSecret: process.env.GITHUB_CLIENT_SECRET,
-          },
-        }
-      : {},
-  account: {
-    accountLinking: { disableImplicitLinking: true },
-  },
-  user: {
-    validateUserInfo: ({ user }) => {
-      const allowed = configuredAdminEmails();
-      if (!user.email || !allowed.has(user.email.toLowerCase())) {
-        return {
-          error: "admin_access_denied",
-          errorDescription: "This identity is not allowed to access the control plane.",
-        };
-      }
+function createAuth() {
+  return betterAuth({
+    database: prismaAdapter(prisma, { provider: "postgresql" }),
+    advanced: { database: { joins: true } },
+    socialProviders:
+      process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+        ? {
+            github: {
+              clientId: process.env.GITHUB_CLIENT_ID,
+              clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            },
+          }
+        : {},
+    account: {
+      accountLinking: { disableImplicitLinking: true },
     },
-  },
-  databaseHooks: {
     user: {
-      create: {
-        before: async (user) => ({ data: { ...user, role: "admin" } }),
+      validateUserInfo: ({ user }) => {
+        const allowed = configuredAdminEmails();
+        if (!user.email || !allowed.has(user.email.toLowerCase())) {
+          return {
+            error: "admin_access_denied",
+            errorDescription: "This identity is not allowed to access the control plane.",
+          };
+        }
       },
     },
-  },
-  session: {
-    cookieCache: { enabled: true, maxAge: 5 * 60 },
-  },
-  plugins: [admin({ defaultRole: "user", adminRoles: ["admin"] }), nextCookies()],
-});
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => ({ data: { ...user, role: "admin" } }),
+        },
+      },
+    },
+    session: {
+      cookieCache: { enabled: true, maxAge: 5 * 60 },
+    },
+    plugins: [admin({ defaultRole: "user", adminRoles: ["admin"] }), nextCookies()],
+  });
+}
+
+let authInstance: ReturnType<typeof createAuth> | undefined;
+
+export function getAuth() {
+  if (!process.env.BETTER_AUTH_SECRET) {
+    throw new Error("BETTER_AUTH_SECRET is not configured.");
+  }
+  authInstance ??= createAuth();
+  return authInstance;
+}

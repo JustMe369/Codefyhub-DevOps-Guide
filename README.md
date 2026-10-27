@@ -292,6 +292,7 @@ Confirm the seed has been applied and the health endpoint reports `database: con
 ## Documentation
 
 - [Project plan and infrastructure](PROJECT_PLAN_AND_INFRASTRUCTURE.md)
+- [Backend control plane architecture and rollout](docs/BACKEND_CONTROL_PLANE.md)
 - [Master autonomous build specification](MASTER_BUILD_PROMPT.md)
 - [Prisma schema](prisma/schema.prisma)
 - [Core seed](prisma/seed.ts)

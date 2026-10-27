@@ -630,9 +630,8 @@ export function AIChat() {
         >
           <div className="animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)] flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/60 backdrop-blur-xl rounded-t-2xl flex-shrink-0 animate-[fadeInDown_0.4s_ease-out] relative overflow-hidden">
-              {/* Decorative gradient line */}
-              <div className="absolute left-0 top-0 h-[3px] w-full bg-gradient-to-r from-transparent via-accent to-transparent opacity-60" />
+            <div className="flex items-center justify-between px-5 py-4 border-b border-accent/30 bg-bg/60 backdrop-blur-xl rounded-t-2xl flex-shrink-0 relative overflow-hidden">
+              <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-transparent via-accent to-transparent opacity-70" />
               
               <div className="flex items-center gap-4 relative z-10">
                 {/* AI Avatar */}
@@ -669,7 +668,7 @@ export function AIChat() {
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
-                    className="text-[10px] bg-transparent border-none text-text cursor-pointer focus:outline-none focus:ring-0 hover:text-accent transition-colors appearance-none"
+                    className="text-[10px] bg-transparent border-none text-text cursor-pointer focus:outline-none focus:ring-0 hover:text-accent transition-colors appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%234de2bd%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpolyline points=%226 9 12 15 18 9%3E%3C/polyline%3E%3C/svg%22)] no-repeat right-1.5 center' pr-6]"
                     title="Select AI model"
                     aria-label="Select AI model"
                   >

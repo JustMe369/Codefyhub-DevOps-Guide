@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenText, Gauge, LogOut, ShieldCheck } from "lucide-react";
+import { BookOpenText, FolderTree, Gauge, LibraryBig, LogOut, ShieldCheck } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 const navigation = [
   { href: "/admin", label: "Overview", icon: Gauge },
   { href: "/admin/articles", label: "Articles", icon: BookOpenText },
+  { href: "/admin/sources", label: "Sources", icon: LibraryBig },
+  { href: "/admin/taxonomy", label: "Structure", icon: FolderTree },
 ];
 
 export function AdminShell({ name, children }: { name: string; children: React.ReactNode }) {

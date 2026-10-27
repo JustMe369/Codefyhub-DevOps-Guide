@@ -5,6 +5,12 @@ import { getAdminIdentity } from "@/lib/admin/authz";
 
 export default async function AdminSignInPage() {
   if (await getAdminIdentity(await headers())) redirect("/admin");
-  const configured = Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && process.env.ADMIN_EMAILS);
+  const configured = Boolean(
+    process.env.BETTER_AUTH_SECRET &&
+    process.env.BETTER_AUTH_URL &&
+    process.env.GITHUB_CLIENT_ID &&
+    process.env.GITHUB_CLIENT_SECRET &&
+    process.env.ADMIN_EMAILS,
+  );
   return <SignInCard configured={configured} />;
 }

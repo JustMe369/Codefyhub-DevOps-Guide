@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 
 export type AdminIdentity = {
   id: string;
@@ -7,7 +7,8 @@ export type AdminIdentity = {
 };
 
 export async function getAdminIdentity(requestHeaders: Headers): Promise<AdminIdentity | null> {
-  const session = await auth.api.getSession({ headers: requestHeaders });
+  if (!process.env.BETTER_AUTH_SECRET || !process.env.ADMIN_EMAILS) return null;
+  const session = await getAuth().api.getSession({ headers: requestHeaders });
   if (!session) return null;
 
   const roles = (session.user.role ?? "")
