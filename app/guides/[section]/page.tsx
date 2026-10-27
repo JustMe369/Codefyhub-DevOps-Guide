@@ -21,6 +21,15 @@ export default async function SectionPage({ params }: Props) {
     include: { articles: { where: { status: "PUBLISHED" }, orderBy: { order: "asc" } } }
   });
   if (!section) notFound();
+  const isStorageSlice = section.slug === "storage-raid";
+  const articleCard = (article: typeof section.articles[number]) => (
+    <Link className="article-row" href={`/guides/${section.slug}/${article.slug}`} key={article.id}>
+      <span className="article-row-num">{String(article.order).padStart(2, "0")}</span>
+      <span><span className="article-type">{article.contentType.toLowerCase().replaceAll("_", " ")} · {article.validationStatus.toLowerCase().replaceAll("_", " ")}</span><h2>{article.title}</h2><p>{article.description}</p></span>
+      <span className="article-row-meta">{article.readingMinutes} min<br />{article.difficulty.toLowerCase()}</span>
+      <ArrowRight size={17} aria-hidden="true" />
+    </Link>
+  );
   return (
     <div style={{ gridColumn: "2 / -1" }}>
       <div className="page-hero">
@@ -28,16 +37,13 @@ export default async function SectionPage({ params }: Props) {
         <h1>{section.title}</h1>
         <p>{section.summary}</p>
       </div>
-      <div className="article-list">
-        {section.articles.map((article) => (
-          <Link className="article-row" href={`/guides/${section.slug}/${article.slug}`} key={article.id}>
-            <span className="article-row-num">{String(article.order).padStart(2, "0")}</span>
-            <span><h2>{article.title}</h2><p>{article.description}</p></span>
-            <span className="article-row-meta">{article.readingMinutes} min<br />{article.difficulty.toLowerCase()}</span>
-            <ArrowRight size={17} aria-hidden="true" />
-          </Link>
-        ))}
-      </div>
+      {isStorageSlice ? (
+        <div className="category-groups">
+          <section><div className="category-group-heading"><span>01</span><div><h2>Learn and decide</h2><p>Understand failure tolerance, capacity, and workload tradeoffs before creating an array.</p></div></div><div className="article-list">{section.articles.filter((article) => ["CONCEPT", "REFERENCE"].includes(article.contentType)).map(articleCard)}</div></section>
+          <section><div className="category-group-heading"><span>02</span><div><h2>Build and configure</h2><p>Apply a reviewed implementation and keep the exact artifact under change control.</p></div></div><div className="article-list">{section.articles.filter((article) => ["HOW_TO", "CONFIGURATION_RECIPE"].includes(article.contentType)).map(articleCard)}<Link className="artifact-index-row" href="/configurations/mdadm-monitoring"><span>Configuration artifact</span><strong>mdadm monitoring recipe</strong><ArrowRight size={17} /></Link></div></section>
+          <section><div className="category-group-heading"><span>03</span><div><h2>Respond and recover</h2><p>Start with read-only evidence, protect the surviving copy, and verify recoverability.</p></div></div><div className="article-list">{section.articles.filter((article) => article.contentType === "RUNBOOK").map(articleCard)}</div></section>
+        </div>
+      ) : <div className="article-list">{section.articles.map(articleCard)}</div>}
     </div>
   );
 }

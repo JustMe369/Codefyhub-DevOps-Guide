@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Bot, X, Send } from "lucide-react";
+import { Bot, X, Send } from "lucide-react";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -46,11 +46,11 @@ export function AIChat() {
       const data = await response.json();
       const assistantMsg: Message = { role: "assistant", content: data.content ?? "No response received." };
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
+    } catch {
       setHasError(true);
       const errorMsg: Message = {
         role: "assistant",
-        content: "I couldn't reach the AI assistant. Please make sure GROQ_API_KEY is configured, or try again later.",
+        content: "I couldn't reach the AI assistant. Please make sure OPENROUTER_API_KEY is configured, or try again later.",
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -71,7 +71,7 @@ export function AIChat() {
 
       {/* Chat panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-80 flex flex-col rounded-xl bg-panel border border-border shadow-xl">
+        <div className="fixed bottom-6 right-6 z-50 w-80 flex flex-col max-h-[70vh] rounded-xl bg-panel border border-border shadow-xl">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-panel-2 rounded-t-xl">
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5 text-accent" aria-hidden="true" />

@@ -12,7 +12,7 @@
 
 Codefyhub-DevOps Guide is a PostgreSQL-backed technical knowledge system for engineers designing, securing, and operating modern infrastructure. It favors decision guidance, validation, troubleshooting, and recovery over unexplained command lists.
 
-The current edition includes 12 disciplines, 61 focused articles, 29 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
+The current edition includes 12 disciplines, 62 focused articles, 31 official source collections, 40 glossary terms, an 18-control production-readiness review, and a 48-question adaptive assessment studio.
 
 Open the running guide at [http://localhost:3000](http://localhost:3000).
 
@@ -46,7 +46,7 @@ Open the running guide at [http://localhost:3000](http://localhost:3000).
 - Print-friendly articles and reduced-motion support.
 - Local health endpoint for application and database status.
 - Deterministic database seed that is safe to run repeatedly.
-- AI chat assistant (Groq free-tier LLM) for DevOps guidance, accessible via floating widget.
+- AI chat assistant (OpenRouter free-tier LLM) for DevOps guidance, accessible via floating widget.
 
 ## Architecture
 
@@ -154,8 +154,9 @@ The Compose service is health checked and publishes PostgreSQL only on `127.0.0.
 | `CONTENT_REVERIFY` | Set to `true` only when an existing corpus was deliberately re-reviewed | Unset |
 | `CONTENT_VERIFIED_BY` | Accountable editorial reviewer or team | `Codefyhub Editorial Team` |
 | `NEXT_PUBLIC_SITE_URL` | Canonical public URL; leave unset for local-only use | `https://guide.example.com` |
+| `NEXT_PUBLIC_REPOSITORY_URL` | Public repository used for source/edit links | `https://github.com/owner/repository` |
 | `HSTS_PRELOAD` | Opt in to HSTS subdomain coverage and browser preload only after every subdomain is HTTPS-ready | Unset |
-| `GROQ_API_KEY` | API key for Groq free-tier LLM (powers the AI chat assistant). Get one at https://console.groq.com | `gsk_...` |
+| `OPENROUTER_API_KEY` | API key for OpenRouter free-tier LLM (powers the AI chat assistant). Get one at https://openrouter.ai | `sk-or-...` |
 
 Never commit `.env.local` or reuse its development credentials in a shared environment.
 
@@ -164,10 +165,14 @@ Never commit `.env.local` or reuse its development credentials in a shared envir
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Start the Next.js development server |
-| `npm run build` | Produce the optimized production build (applies migrations, generates client, seeds content) |
+| `npm run build` | Generate Prisma Client and produce the optimized build without migrating or publishing content |
 | `npm run deploy:db` | Apply checked-in migrations as an explicit deployment step |
 | `npm run deploy:content` | Publish reviewed content as an explicit deployment step |
 | `npm run content:check` | Validate content structure, sources, revisions, reading time, and unsafe command patterns |
+| `npm run content:source` | Validate source-authored metadata and required sections without a database |
+| `npm run content:internal-links` | Validate published guide links and related-guide relationships |
+| `npm run search:check` | Run the committed command, error, product, scenario, and empty search evaluation |
+| `npm run secrets:check` | Scan tracked and unignored source files for high-confidence credential patterns |
 | `npm start` | Serve the production build |
 | `npm run lint` | Run Next.js and TypeScript ESLint rules |
 | `npm run typecheck` | Run strict TypeScript without emitting files |
@@ -182,7 +187,9 @@ Never commit `.env.local` or reuse its development credentials in a shared envir
 
 ## Content workflow
 
-Core and advanced editorial data lives in:
+Legacy editorial data lives in the Prisma seed modules. New or substantially upgraded content is authored one file per guide under `site_content/`, with a validated category manifest. The Storage & RAID vertical slice is the reference implementation.
+
+Legacy content currently lives in:
 
 - `prisma/seed.ts`
 - `prisma/additional-content.ts`
@@ -201,7 +208,11 @@ Recommended update sequence:
 ```powershell
 npm run db:seed
 npm run db:seed
+npm run content:source
 npm run content:check
+npm run content:internal-links
+npm run search:check
+npm run secrets:check
 npm run lint
 npm run typecheck
 npm test
@@ -233,17 +244,7 @@ Store backups away from the PostgreSQL data directory and test restoration in an
 
 ## Quality and verification
 
-The current project has been verified with:
-
-- Successful database migration and repeatable seed
-- ESLint with no findings
-- Strict TypeScript with no errors
-- Passing Vitest unit tests
-- Successful optimized Next.js build
-- Dependency audit with zero known vulnerabilities
-- HTTP checks for all major platform sections, search, and health
-- Browser QA for responsive navigation, article rendering, full-text search, glossary results, progress, readiness state, and the complete assessment flow
-- No browser console errors or warnings in the final verification pass
+See [the foundation batch report](docs/FOUNDATION_BATCH.md) for dated results, test conditions, and limitations. A passing build does not validate the infrastructure commands in a guide.
 
 ## Security notes
 
@@ -298,7 +299,7 @@ Confirm the seed has been applied and the health endpoint reports `database: con
 
 ## Status and next steps
 
-The local guide is feature-complete for its current scope. The next recommended investments are authenticated editorial workflows, automated accessibility checks, a larger reviewed assessment bank, source freshness reporting, and a managed hosting/database design if public publication is authorized.
+The platform foundation and Storage & RAID vertical slice are implemented locally. The remaining legacy content needs domain-by-domain review and migration into the validated source model. Follow [the authoring guide](docs/CONTENT_AUTHORING.md) and [the batch report](docs/FOUNDATION_BATCH.md) before publishing.
 
 ---
 

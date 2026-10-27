@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { ArrowRight, DatabaseBackup, Gauge, ShieldCheck, Terminal, Server, HardDrive, Network, BadgeCheck, Compass, Boxes, GitBranch, Database, Cloud, Workflow, BrainCircuit } from "lucide-react";
+import { ArrowRight, DatabaseBackup, Gauge, ShieldCheck, Terminal, Server, HardDrive, Network, BadgeCheck, Compass, Boxes, GitBranch, Database, Cloud, Workflow, BrainCircuit, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 const iconMap = { Compass, HardDrive, Server, Shield: ShieldCheck, Terminal, Network, BadgeCheck, Boxes, GitBranch, Database, Cloud, Workflow };
 
 export default async function HomePage() {
-  const sections = await prisma.section.findMany({
+  const [sections, recentArticles] = await Promise.all([prisma.section.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { order: "asc" },
     include: { _count: { select: { articles: { where: { status: "PUBLISHED" } } } } }
-  });
+  }), prisma.article.findMany({ where: { status: "PUBLISHED" }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
 
   return (
     <>
@@ -19,6 +19,7 @@ export default async function HomePage() {
             <div className="eyebrow">Operations handbook · 2026 edition</div>
             <h1>Build infrastructure you can <span>recover.</span></h1>
             <p className="hero-copy">A practical field guide from physical disks to governed delivery platforms. Every layer is explained as a decision, a procedure, and a validation—not a collection of commands to paste blindly.</p>
+            <form className="hero-search" action="/search" role="search"><Search aria-hidden="true" size={19} /><label className="sr-only" htmlFor="hero-search">Search documentation</label><input id="hero-search" name="q" type="search" placeholder="Search a command, error, product, or scenario…" /><button type="submit">Search</button></form>
             <div className="hero-actions">
               <Link className="button button-primary" href="/guides/start-here">Start the guide <ArrowRight size={16} /></Link>
               <Link className="button" href="/exam"><BrainCircuit size={16} /> Test your knowledge</Link>
@@ -40,6 +41,16 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="knowledge-lanes shell" aria-labelledby="knowledge-lanes-title">
+        <div><div className="eyebrow">Task entry points</div><h2 id="knowledge-lanes-title">Move from question to evidence</h2></div>
+        <div className="knowledge-lane-grid">
+          <Link href="/search?type=RUNBOOK&q=recovery"><ShieldCheck size={20} /><strong>Incident runbooks</strong><span>Diagnose symptoms before changing state.</span></Link>
+          <Link href="/configurations"><Terminal size={20} /><strong>Configurations</strong><span>Download reviewed artifacts with rollback steps.</span></Link>
+          <Link href="/guides/start-here/learning-path-lab"><Compass size={20} /><strong>Learning paths</strong><span>Build prerequisite knowledge in sequence.</span></Link>
+          <Link href="/search?q=mdadm"><HardDrive size={20} /><strong>Command answers</strong><span>Find exact commands with operational context.</span></Link>
+        </div>
+      </section>
+
       <section className="section-block shell">
         <div className="section-heading">
           <div><div className="eyebrow">Guided sequence</div><h2>From bare metal to operating discipline</h2></div>
@@ -58,6 +69,11 @@ export default async function HomePage() {
             );
           })}
         </div>
+      </section>
+
+      <section className="section-block shell">
+        <div className="section-heading"><div><div className="eyebrow">Repository metadata</div><h2>Recently updated</h2></div><p>Derived from published article records—never from invented activity statistics.</p></div>
+        <div className="recent-grid">{recentArticles.map((article) => <Link href={`/guides/${article.section.slug}/${article.slug}`} key={article.id}><span>{article.section.title} · {article.contentType.toLowerCase().replaceAll("_", " ")}</span><strong>{article.title}</strong><time dateTime={article.updatedAt.toISOString()}>{article.updatedAt.toISOString().slice(0, 10)}</time></Link>)}</div>
       </section>
 
       <section className="section-block shell">

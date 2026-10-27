@@ -16,3 +16,5 @@ postgres-data/
 /.local/
 
 .vercel
+
+.env*

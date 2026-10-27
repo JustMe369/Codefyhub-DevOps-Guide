@@ -1,61 +1,45 @@
 import Link from "next/link";
-import { Prisma } from "@/generated/prisma/client";
 import { Search } from "lucide-react";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { stripMarkdown } from "@/lib/utils";
+import { searchKnowledge } from "@/lib/search";
 
-type SearchRow = { id: string; title: string; description: string; body: string; articleSlug: string; sectionSlug: string; sectionTitle: string; rank: number; kind: "article" | "glossary" };
-const querySchema = z.string().trim().max(100).catch("");
+const searchSchema = z.object({
+  q: z.string().trim().max(100).catch(""),
+  section: z.string().regex(/^[a-z0-9-]+$/).optional().catch(undefined),
+  type: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH"]).optional().catch(undefined),
+  difficulty: z.enum(["FOUNDATION", "INTERMEDIATE", "ADVANCED"]).optional().catch(undefined)
+});
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+function first(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
+
+export default async function SearchPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
-  const query = querySchema.parse(params.q ?? "");
-  const results = query.length >= 2 ? await prisma.$queryRaw<SearchRow[]>(Prisma.sql`
-    SELECT * FROM (
-    SELECT a.id, a.title, a.description, a.body, a.slug AS "articleSlug",
-      s.slug AS "sectionSlug", s.title AS "sectionTitle",
-      ts_rank_cd(
-        setweight(to_tsvector('english', a.title), 'A') ||
-        setweight(to_tsvector('english', a.description), 'B') ||
-        setweight(to_tsvector('english', a.body), 'C'),
-        websearch_to_tsquery('english', ${query})
-      ) AS rank, 'article'::text AS kind
-    FROM "Article" a
-    JOIN "Section" s ON s.id = a."sectionId"
-    WHERE a.status = 'PUBLISHED'
-      AND s.status = 'PUBLISHED'
-      AND to_tsvector('english', a.title || ' ' || a.description || ' ' || a.body)
-        @@ websearch_to_tsquery('english', ${query})
-    UNION ALL
-    SELECT g.id, g.term AS title, g.definition AS description, g.definition AS body,
-      '' AS "articleSlug", '' AS "sectionSlug", 'Glossary' AS "sectionTitle",
-      ts_rank_cd(
-        setweight(to_tsvector('english', g.term), 'A') || setweight(to_tsvector('english', g.definition), 'B'),
-        websearch_to_tsquery('english', ${query})
-      ) AS rank, 'glossary'::text AS kind
-    FROM "GlossaryTerm" g
-    WHERE to_tsvector('english', g.term || ' ' || g.definition)
-      @@ websearch_to_tsquery('english', ${query})
-    ) results
-    ORDER BY rank DESC, title ASC
-    LIMIT 30
-  `) : [];
+  const parsed = searchSchema.parse({ q: first(params.q) ?? "", section: first(params.section), type: first(params.type), difficulty: first(params.difficulty) });
+  const results = await searchKnowledge(parsed.q, { section: parsed.section, contentType: parsed.type, difficulty: parsed.difficulty });
+  const sections = await prisma.section.findMany({ where: { status: "PUBLISHED" }, orderBy: { order: "asc" }, select: { slug: true, title: true } });
 
   return (
     <div className="shell search-page">
       <div className="eyebrow">Knowledge search</div>
       <h1>Find the procedure, not the noise.</h1>
-      <p>Search across article titles, summaries, commands, and technical guidance.</p>
-      <form className="search-large" action="/search"><input name="q" type="search" defaultValue={query} placeholder="Try: cloud-init, RAID 10, MTU…" autoFocus /><button className="button button-primary" type="submit"><Search size={16} />Search</button></form>
-      <div className="search-results">
-        {query.length > 0 && query.length < 2 && <p>Enter at least two characters.</p>}
-        {query.length >= 2 && results.length === 0 && <p>No exact matches. Try a broader technical term.</p>}
+      <p>Search titles, headings, commands, configuration, tags, glossary definitions, and article text. Use Ctrl/Cmd+K from any page.</p>
+      <form className="search-workbench" action="/search">
+        <div className="search-large"><input name="q" type="search" defaultValue={parsed.q} placeholder="Try: mdadm --detail, degraded RAID, MTU…" aria-label="Search query" autoFocus /><button className="button button-primary" type="submit"><Search size={16} />Search</button></div>
+        <div className="search-filters" aria-label="Search filters">
+          <label>Category<select name="section" defaultValue={parsed.section ?? ""}><option value="">All categories</option>{sections.map((section) => <option value={section.slug} key={section.slug}>{section.title}</option>)}</select></label>
+          <label>Content type<select name="type" defaultValue={parsed.type ?? ""}><option value="">All types</option><option value="HOW_TO">How-to</option><option value="RUNBOOK">Runbook</option><option value="REFERENCE">Reference</option><option value="CONCEPT">Concept</option><option value="CONFIGURATION_RECIPE">Configuration recipe</option><option value="LEARNING_PATH">Learning path</option></select></label>
+          <label>Difficulty<select name="difficulty" defaultValue={parsed.difficulty ?? ""}><option value="">All levels</option><option value="FOUNDATION">Foundation</option><option value="INTERMEDIATE">Intermediate</option><option value="ADVANCED">Advanced</option></select></label>
+        </div>
+      </form>
+      <div className="search-results" aria-live="polite">
+        {parsed.q.length > 0 && parsed.q.length < 2 && <p>Enter at least two characters.</p>}
+        {parsed.q.length >= 2 && results.length === 0 && <div className="search-empty"><h2>No matches</h2><p>Try a product name, exact command, shorter error fragment, or remove a filter.</p></div>}
         {results.map((result) => (
-          <Link className="search-result" href={result.kind === "glossary" ? `/glossary#${result.id}` : `/guides/${result.sectionSlug}/${result.articleSlug}`} key={result.id}>
-            <div className="eyebrow">{result.sectionTitle}</div>
+          <Link className="search-result" href={result.kind === "glossary" ? `/glossary#${result.id}` : `/guides/${result.sectionSlug}/${result.articleSlug}`} key={`${result.kind}-${result.id}`}>
+            <div className="search-result-meta"><span>{result.sectionTitle}</span><span>{result.contentType.toLowerCase().replaceAll("_", " ")}</span><span>{result.difficulty.toLowerCase()}</span></div>
             <h2>{result.title}</h2>
-            <p>{result.description || stripMarkdown(result.body).slice(0, 170)}</p>
+            <p>{result.snippet || result.description}</p>
           </Link>
         ))}
       </div>

@@ -19,7 +19,7 @@ if ($LASTEXITCODE -eq 0) {
     exit 0
 }
 
-& $pgCtl -D $dataDirectory -l $logFile -o '"-p 5433" "-h 127.0.0.1"' start
+& $pgCtl -D $dataDirectory -l $logFile -o '-p 5433 -h 127.0.0.1' start
 if ($LASTEXITCODE -ne 0) {
     throw "PostgreSQL did not start. Review $logFile."
 }

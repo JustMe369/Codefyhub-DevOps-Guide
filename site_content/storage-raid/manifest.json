@@ -1,0 +1,62 @@
+{
+  "articles": [
+    {
+      "section": "storage-raid",
+      "slug": "mdadm-zfs",
+      "title": "Build and operate Linux software RAID safely",
+      "description": "Create a Linux RAID 1 array with mdadm, persist its identity, verify monitoring, and prepare a recovery path without confusing redundancy with backup.",
+      "difficulty": "ADVANCED",
+      "contentType": "HOW_TO",
+      "validationStatus": "SOURCE_REVIEWED",
+      "order": 2,
+      "bodyFile": "mdadm-zfs.md",
+      "tags": ["linux", "storage", "raid", "mdadm", "recovery"],
+      "prerequisites": [
+        "A disposable Ubuntu Server 24.04 LTS lab or an approved maintenance window",
+        "Two unused, equal-sized block devices with known model and serial numbers",
+        "Root or sudo access and independent console access",
+        "A verified backup stored outside the candidate member devices"
+      ],
+      "relatedGuides": [
+        "storage-raid/choose-raid",
+        "storage-raid/degraded-mdadm-recovery",
+        "storage-raid/design-failure-dr-validation"
+      ],
+      "applicablePlatforms": ["Ubuntu Server 24.04 LTS", "Debian-family Linux with mdadm"],
+      "applicableVersions": ["mdadm 4.x", "Linux MD RAID"],
+      "sourceTitles": ["Ubuntu Server documentation", "mdadm manual", "mdadm.conf manual"],
+      "reviewedAt": "2026-10-27",
+      "testedAt": null,
+      "testEnvironment": null
+    },
+    {
+      "section": "storage-raid",
+      "slug": "degraded-mdadm-recovery",
+      "title": "Recover a degraded mdadm RAID 1 array",
+      "description": "Diagnose a degraded Linux software mirror, distinguish a disk failure from path or controller faults, replace one confirmed member, and verify recovery.",
+      "difficulty": "ADVANCED",
+      "contentType": "RUNBOOK",
+      "validationStatus": "SOURCE_REVIEWED",
+      "order": 5,
+      "bodyFile": "degraded-mdadm-recovery.md",
+      "tags": ["linux", "storage", "raid", "mdadm", "runbook", "incident-response"],
+      "prerequisites": [
+        "Independent console access and an approved incident or maintenance record",
+        "A current, restore-tested backup of the affected data",
+        "A replacement disk at least as large as the failed member",
+        "The array name, filesystem mount, and stable device identifiers"
+      ],
+      "relatedGuides": [
+        "storage-raid/mdadm-zfs",
+        "storage-raid/choose-raid",
+        "storage-raid/design-failure-dr-validation"
+      ],
+      "applicablePlatforms": ["Ubuntu Server 24.04 LTS", "Debian-family Linux with mdadm"],
+      "applicableVersions": ["mdadm 4.x", "Linux MD RAID 1"],
+      "sourceTitles": ["Ubuntu Server documentation", "mdadm manual", "mdadm.conf manual"],
+      "reviewedAt": "2026-10-27",
+      "testedAt": null,
+      "testEnvironment": null
+    }
+  ]
+}

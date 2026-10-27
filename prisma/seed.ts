@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, Difficulty } from "../generated/prisma/client";
+import { PrismaClient, Difficulty, ContentType, ValidationStatus } from "../generated/prisma/client";
+import { loadSourceArticles, repositoryRoot } from "../lib/content/source-content";
 import { additionalArticles, additionalSections } from "./additional-content";
 import { knowledgeExpansionArticles, knowledgeExpansionGlossary } from "./knowledge-expansion";
 import { gapArticles } from "./gap-content";
@@ -13,6 +14,7 @@ const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
 const verified = new Date(`${verificationValue}T00:00:00.000Z`);
 const reverifyExisting = process.env.CONTENT_REVERIFY === "true";
 const verifiedBy = process.env.CONTENT_VERIFIED_BY ?? "Codefyhub Editorial Team";
+const sourceContent = loadSourceArticles(`${repositoryRoot}/site_content/storage-raid/manifest.json`);
 if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
 const testedVersionsBySection: Record<string, string> = {
@@ -901,10 +903,35 @@ const baseArticles = [
   ...gapArticles
 ];
 
-const articles = baseArticles.map((article) => {
+const generatedArticles = baseArticles.map((article) => {
   const appendix = advancedAppendices[`${article.section}/${article.slug}`];
-  return appendix ? { ...article, body: `${article.body}\n\n${appendix}` } : article;
+  return {
+    ...article,
+    body: appendix ? `${article.body}\n\n${appendix}` : article.body,
+    contentType: ContentType.CONCEPT,
+    validationStatus: ValidationStatus.DRAFT,
+    applicablePlatforms: [] as string[],
+    applicableVersions: [] as string[],
+    prerequisites: [] as string[],
+    relatedGuides: [] as string[],
+    tags: [] as string[],
+    reviewedAt: null as string | null,
+    testedAt: null as string | null,
+    testEnvironment: null as string | null
+  };
 });
+
+const sourceContentKeys = new Set(sourceContent.map((article) => `${article.section}/${article.slug}`));
+const articles = [
+  ...generatedArticles.filter((article) => !sourceContentKeys.has(`${article.section}/${article.slug}`)),
+  ...sourceContent.map((article) => ({
+    ...article,
+    difficulty: Difficulty[article.difficulty],
+    contentType: ContentType[article.contentType],
+    validationStatus: ValidationStatus[article.validationStatus],
+    minutes: Math.max(2, Math.ceil(article.body.trim().split(/\s+/).length / 180))
+  }))
+];
 
 const sourceRows = [
   { title: "Proxmox VE Administration Guide", organization: "Proxmox Server Solutions", url: "https://pve.proxmox.com/pve-docs/pve-admin-guide.html", sourceType: "official documentation", sections: ["start-here", "storage-raid", "proxmox", "production"] },
@@ -913,6 +940,8 @@ const sourceRows = [
   { title: "Amnezia documentation", organization: "Amnezia", url: "https://docs.amnezia.org/", sourceType: "official documentation", sections: ["secure-networking", "remote-access"] },
   { title: "Tailscale documentation", organization: "Tailscale", url: "https://tailscale.com/kb", sourceType: "official documentation", sections: ["remote-access"] },
   { title: "OpenZFS documentation", organization: "OpenZFS", url: "https://openzfs.github.io/openzfs-docs/", sourceType: "official documentation", sections: ["storage-raid", "proxmox", "production"] },
+  { title: "mdadm manual", organization: "Ubuntu", url: "https://manpages.ubuntu.com/manpages/noble/en/man8/mdadm.8.html", sourceType: "official package manual", sections: ["storage-raid"] },
+  { title: "mdadm.conf manual", organization: "Ubuntu", url: "https://manpages.ubuntu.com/manpages/noble/en/man5/mdadm.conf.5.html", sourceType: "official package manual", sections: ["storage-raid"] },
   { title: "Docker Engine on Ubuntu", organization: "Docker", url: "https://docs.docker.com/engine/install/ubuntu/", sourceType: "official documentation", sections: ["ubuntu", "platform-engineering"] },
   { title: "Red Hat Enterprise Linux 10 documentation", organization: "Red Hat", url: "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10", sourceType: "official documentation", sections: ["rhel"] },
   { title: "Red Hat Enterprise Linux life cycle", organization: "Red Hat", url: "https://access.redhat.com/support/policy/updates/errata", sourceType: "official lifecycle policy", sections: ["rhel"] },
@@ -1002,6 +1031,8 @@ const articleSourceTitles: Record<string, string[]> = {
   ,"platform-engineering/capstone-compliance-evidence": ["GitHub Actions secure use reference", "Sigstore documentation", "Google SRE Workbook"]
 };
 
+for (const article of sourceContent) articleSourceTitles[`${article.section}/${article.slug}`] = article.sourceTitles;
+
 const glossary = [
   ["RAID", "A method of combining disks to improve availability, performance, or capacity. RAID does not replace backups."],
   ["ZFS", "A storage system combining volume management, checksummed filesystems, snapshots, and software-defined redundancy."],
@@ -1056,6 +1087,7 @@ async function main() {
   const articleMap = new Map<string, string>();
   for (const article of articles) {
     const sectionId = sectionMap.get(article.section)!;
+    const reviewedAt = article.reviewedAt ? new Date(`${article.reviewedAt}T00:00:00.000Z`) : verified;
     const data = {
       sectionId,
       slug: article.slug,
@@ -1063,20 +1095,32 @@ async function main() {
       description: article.description,
       body: article.body,
       difficulty: article.difficulty,
+      contentType: article.contentType ?? ContentType.CONCEPT,
+      validationStatus: article.validationStatus ?? ValidationStatus.DRAFT,
+      applicablePlatforms: article.applicablePlatforms ?? [],
+      applicableVersions: article.applicableVersions ?? [],
+      prerequisites: article.prerequisites ?? [],
+      relatedGuides: article.relatedGuides ?? [],
+      testedAt: article.testedAt ? new Date(`${article.testedAt}T00:00:00.000Z`) : null,
+      testEnvironment: article.testEnvironment ?? null,
       readingMinutes: Math.max(2, Math.ceil(article.body.trim().split(/\s+/).length / 180)),
       order: article.order,
       status: "PUBLISHED" as const,
       publishedAt: verified,
-      lastVerifiedAt: verified
+      lastVerifiedAt: reviewedAt
       ,verifiedBy
-      ,verificationMethod: "First-party documentation review plus isolated-lab validation where commands are provided"
-      ,testedVersions: testedVersionsBySection[article.section]
+      ,verificationMethod: article.validationStatus === ValidationStatus.LAB_TESTED
+        ? "First-party documentation review and recorded lab execution"
+        : article.validationStatus === ValidationStatus.SOURCE_REVIEWED
+          ? "First-party documentation review; operational execution not performed"
+          : "Editorial draft; technical validation is pending"
+      ,testedVersions: article.applicableVersions.length ? article.applicableVersions.join("; ") : testedVersionsBySection[article.section]
     };
     const existing = await db.article.findUnique({ where: { sectionId_slug: { sectionId, slug: article.slug } } });
     const row = existing
       ? await (async () => {
           const contentChanged = existing.body !== article.body || existing.title !== article.title || existing.description !== article.description;
-          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || (reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
+          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.contentType !== data.contentType || existing.validationStatus !== data.validationStatus || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || JSON.stringify(existing.applicablePlatforms) !== JSON.stringify(data.applicablePlatforms) || JSON.stringify(existing.applicableVersions) !== JSON.stringify(data.applicableVersions) || JSON.stringify(existing.prerequisites) !== JSON.stringify(data.prerequisites) || JSON.stringify(existing.relatedGuides) !== JSON.stringify(data.relatedGuides) || existing.testEnvironment !== data.testEnvironment || existing.testedAt?.valueOf() !== data.testedAt?.valueOf() || (article.reviewedAt ? existing.lastVerifiedAt.valueOf() !== reviewedAt.valueOf() : reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
           if (contentChanged) {
             const latest = await db.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
             await db.articleVersion.create({
@@ -1085,19 +1129,28 @@ async function main() {
                 revision: (latest._max.revision ?? 0) + 1,
                 body: article.body,
                 changeSummary: "Seeded editorial update",
-                snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: verified.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] }
+                snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: data.lastVerifiedAt.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] }
               }
             });
           }
           if (!contentChanged && !metadataChanged) return existing;
-          return db.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? verified, lastVerifiedAt: reverifyExisting ? verified : existing.lastVerifiedAt } });
+          return db.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? reviewedAt, lastVerifiedAt: article.reviewedAt ? reviewedAt : reverifyExisting ? verified : existing.lastVerifiedAt } });
         })()
       : await db.article.create({ data });
     articleMap.set(`${article.section}/${article.slug}`, row.id);
-    if (!existing) await db.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition", snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: verified.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
+    if (!existing) await db.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition", snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: data.lastVerifiedAt.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
     const latestVersion = await db.articleVersion.findFirst({ where: { articleId: row.id }, orderBy: { revision: "desc" } });
     if (latestVersion && latestVersion.snapshot === null && latestVersion.body === row.body) {
       await db.articleVersion.update({ where: { id: latestVersion.id }, data: { snapshot: { title: row.title, description: row.description, difficulty: row.difficulty, readingMinutes: row.readingMinutes, status: row.status, lastVerifiedAt: row.lastVerifiedAt.toISOString(), verifiedBy: row.verifiedBy, verificationMethod: row.verificationMethod, testedVersions: row.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
+    }
+    await db.articleTag.deleteMany({ where: { articleId: row.id } });
+    for (const tagSlug of article.tags ?? []) {
+      const tag = await db.tag.upsert({
+        where: { slug: tagSlug },
+        update: { name: tagSlug.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ") },
+        create: { slug: tagSlug, name: tagSlug.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ") }
+      });
+      await db.articleTag.create({ data: { articleId: row.id, tagId: tag.id } });
     }
   }
 

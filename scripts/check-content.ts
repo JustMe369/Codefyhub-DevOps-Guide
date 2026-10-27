@@ -12,7 +12,7 @@ const warnings: string[] = [];
 try {
   const sections = await prisma.section.findMany({
     where: { status: "PUBLISHED" },
-    include: { articles: { where: { status: "PUBLISHED" }, include: { articleSources: { include: { source: true } }, _count: { select: { articleSources: true, versions: true } } } } }
+    include: { articles: { where: { status: "PUBLISHED" }, include: { articleSources: { include: { source: true } }, _count: { select: { articleSources: true, articleTags: true, versions: true } } } } }
   });
   const articles = sections.flatMap((section) => section.articles.map((article) => ({ ...article, section: section.slug })));
   const banned = [
@@ -37,6 +37,15 @@ try {
     if (article.readingMinutes !== expectedMinutes) warnings.push(`${article.section}/${article.slug}: reading time should be ${expectedMinutes}, stored ${article.readingMinutes}`);
     if (words < minimumWords) errors.push(`${article.section}/${article.slug}: ${article.difficulty.toLowerCase()} article has ${words} words; minimum is ${minimumWords}`);
     if (article.difficulty === "ADVANCED" && headingIds.length < 3) errors.push(`${article.section}/${article.slug}: advanced article needs at least three operational H2 sections`);
+    if (article.validationStatus !== "DRAFT") {
+      if (article._count.articleTags === 0) errors.push(`${article.section}/${article.slug}: reviewed content needs at least one tag`);
+      if (article.applicablePlatforms.length === 0 || article.applicableVersions.length === 0) errors.push(`${article.section}/${article.slug}: reviewed content needs structured applicability`);
+      if (article.prerequisites.length === 0) errors.push(`${article.section}/${article.slug}: reviewed operational content needs prerequisites`);
+      if (article.relatedGuides.length === 0) errors.push(`${article.section}/${article.slug}: reviewed content needs related guides`);
+      if (!/expected (outcome|output)/i.test(article.body)) errors.push(`${article.section}/${article.slug}: reviewed operational content needs representative expected evidence`);
+    }
+    if (article.validationStatus === "LAB_TESTED" && (!article.testedAt || !article.testEnvironment)) errors.push(`${article.section}/${article.slug}: lab-tested content lacks environment/date evidence`);
+    if (article.validationStatus !== "LAB_TESTED" && (article.testedAt || article.testEnvironment)) errors.push(`${article.section}/${article.slug}: non-lab content cannot claim lab evidence`);
     for (const [needle, reason] of banned) if (article.body.includes(needle)) errors.push(`${article.section}/${article.slug}: ${reason}`);
   }
 

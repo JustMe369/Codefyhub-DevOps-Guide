@@ -16,7 +16,7 @@ export function MarkdownArticle({ body }: { body: string }) {
         rehypePlugins={[rehypeSanitize]}
         components={{
           h2: ({ children }) => <h2 id={headingId(children)}>{children}</h2>,
-          h3: ({ children }) => <h3 id={headingId(children)}>{children}</h3>,
+          h3: ({ children }) => <h3>{children}</h3>,
           table: ({ children }) => (
             <div className="table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}>
               <table>{children}</table>

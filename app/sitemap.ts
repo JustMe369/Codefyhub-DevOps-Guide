@@ -9,6 +9,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/glossary` },
     { url: `${base}/exam` },
     { url: `${base}/checklist` },
+    { url: `${base}/configurations` },
+    { url: `${base}/configurations/mdadm-monitoring` },
     ...sections.map((section) => ({ url: `${base}/guides/${section.slug}`, lastModified: section.updatedAt })),
     ...articles.map((a) => ({ url: `${base}/guides/${a.section.slug}/${a.slug}`, lastModified: a.updatedAt }))
   ];

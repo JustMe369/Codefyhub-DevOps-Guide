@@ -4,8 +4,9 @@ import AxeBuilder from "@axe-core/playwright";
 test("search, lesson navigation, and readiness export are available", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Build infrastructure/i })).toBeVisible();
-  await page.getByLabel("Search the guide").fill("cloud-init");
-  await page.getByRole("search").evaluate((form: HTMLFormElement) => form.requestSubmit());
+  const globalSearch = page.getByLabel("Search the guide");
+  await globalSearch.fill("cloud-init");
+  await globalSearch.press("Enter");
   await expect(page).toHaveURL(/\/search\?q=cloud-init$/);
   await expect(page.getByRole("heading", { name: /Create an Ubuntu Cloud-Init template/i })).toBeVisible();
   await page.getByRole("link", { name: /Create an Ubuntu Cloud-Init template/i }).click();
@@ -65,4 +66,18 @@ test("core pages have no serious accessibility violations", async ({ page, brows
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? "")), `${path} accessibility violations`).toEqual([]);
   }
+});
+
+test("storage vertical slice exposes reviewed metadata, runbook, artifact, and keyboard search", async ({ page }) => {
+  await page.goto("/guides/storage-raid/mdadm-zfs");
+  await expect(page.getByText("Source-reviewed", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Prerequisites", exact: true })).toBeVisible();
+  await expect(page.locator(".related-guides").getByRole("link", { name: /Recover a degraded mdadm RAID 1 array/i })).toBeVisible();
+  await page.getByRole("link", { name: "Review artifact" }).click();
+  await expect(page.getByRole("link", { name: /Download mdadm-monitoring.conf/i })).toHaveAttribute("download", "");
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
+  const search = page.getByLabel("Search the guide");
+  await expect(search).toBeFocused();
+  await search.fill("mdadm cannot open");
+  await expect(page.getByRole("option", { name: /Recover a degraded mdadm RAID 1 array/i })).toBeVisible();
 });

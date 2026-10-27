@@ -14,7 +14,9 @@ Do not present destructive commands without a warning, target-verification step,
 2. Verify technical claims against current first-party documentation.
 3. Set `CONTENT_REVERIFY=true` only after a deliberate review of existing material.
 4. Run `npm run deploy:content` twice and confirm the second run creates no revision or timestamp changes.
-5. Run `npm run content:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e`.
+5. Run `npm run content:source`, `npm run content:check`, `npm run content:internal-links`, `npm run search:check`, `npm run secrets:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e`.
 6. Explain user impact, validation evidence, compatibility, and rollback in the pull request.
 
 Editorial approval and code approval are separate responsibilities. A technically valid implementation must not self-certify its own factual review.
+
+See `docs/CONTENT_AUTHORING.md` for the structured metadata, validation-status rules, and Storage & RAID reference slice.
