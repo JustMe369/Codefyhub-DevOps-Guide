@@ -6,10 +6,10 @@ const iconMap = { Compass, HardDrive, Server, Shield: ShieldCheck, Terminal, Net
 
 export default async function HomePage() {
   const [sections, recentArticles] = await Promise.all([prisma.section.findMany({
-    where: { status: "PUBLISHED" },
+    where: { status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } },
     orderBy: { order: "asc" },
-    include: { _count: { select: { articles: { where: { status: "PUBLISHED" } } } } }
-  }), prisma.article.findMany({ where: { status: "PUBLISHED" }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
+    include: { _count: { select: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC" } } } } }
+  }), prisma.article.findMany({ where: { status: "PUBLISHED", visibility: "PUBLIC", company: { isPublic: true, status: "ACTIVE" } }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
 
   return (
     <>

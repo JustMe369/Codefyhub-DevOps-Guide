@@ -8,7 +8,7 @@ type Props = { params: Promise<{ section: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { section: slug } = await params;
-  const section = await prisma.section.findFirst({ where: { slug, status: "PUBLISHED" }, select: { title: true, summary: true, slug: true } });
+  const section = await prisma.section.findFirst({ where: { slug, status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } }, select: { title: true, summary: true, slug: true } });
   if (!section) return {};
   const url = `/guides/${section.slug}`;
   return { title: section.title, description: section.summary, alternates: { canonical: url }, openGraph: { title: section.title, description: section.summary, url } };
@@ -17,8 +17,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SectionPage({ params }: Props) {
   const { section: slug } = await params;
   const section = await prisma.section.findFirst({
-    where: { slug, status: "PUBLISHED" },
-    include: { articles: { where: { status: "PUBLISHED" }, orderBy: { order: "asc" } } }
+    where: { slug, status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } },
+    include: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC" }, orderBy: { order: "asc" } } }
   });
   if (!section) notFound();
   const isStorageSlice = section.slug === "storage-raid";

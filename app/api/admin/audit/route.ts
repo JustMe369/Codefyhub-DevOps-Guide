@@ -7,11 +7,12 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "audit.view");
     const params = new URL(request.url).searchParams;
     const cursor = params.get("cursor") || undefined;
     const limit = Math.min(Math.max(Number(params.get("limit")) || 50, 1), 100);
     const events = await prisma.auditEvent.findMany({
+      where: { companyId: actor.companyId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

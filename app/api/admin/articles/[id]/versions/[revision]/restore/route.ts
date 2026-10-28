@@ -11,14 +11,14 @@ const payloadSchema = z.object({ expectedUpdatedAt: z.coerce.date(), changeSumma
 
 type Snapshot = {
   title?: string; description?: string; difficulty?: "FOUNDATION" | "INTERMEDIATE" | "ADVANCED";
-  contentType?: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH";
+  contentType?: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH" | "FAQ" | "WORKFLOW" | "ISSUE_SOLUTION" | "POLICY";
   validationStatus?: "DRAFT" | "SOURCE_REVIEWED" | "LAB_TESTED"; readingMinutes?: number;
   lastVerifiedAt?: string; verifiedBy?: string; verificationMethod?: string; testedVersions?: string;
 };
 
 export async function POST(request: Request, context: Context) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.edit");
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid restore payload.", issues: parsed.error.flatten() }, { status: 400 });
     const { id, revision: revisionParam } = await context.params;
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: Context) {
     if (!Number.isInteger(revision) || revision < 1) return NextResponse.json({ error: "Invalid revision." }, { status: 400 });
     const article = await prisma.$transaction(async (tx) => {
       const [current, source] = await Promise.all([
-        tx.article.findUnique({ where: { id }, include: { versions: { orderBy: { revision: "desc" }, take: 1 }, section: { select: { slug: true } } } }),
+        tx.article.findFirst({ where: { id, companyId: actor.companyId }, include: { versions: { orderBy: { revision: "desc" }, take: 1 }, section: { select: { slug: true } } } }),
         tx.articleVersion.findUnique({ where: { articleId_revision: { articleId: id, revision } } }),
       ]);
       if (!current || !source) return null;
@@ -53,7 +53,7 @@ export async function POST(request: Request, context: Context) {
         data: { articleId: id, revision: nextRevision, body: restored.body, changeSummary: parsed.data.changeSummary, snapshot: { ...snapshot, restoredFromRevision: revision }, createdById: actor.id },
       });
       await tx.auditEvent.create({
-        data: { actorId: actor.id, actorEmail: actor.email, action: "article.restore", entityType: "Article", entityId: id, summary: `Restored ${current.section.slug}/${current.slug} from revision ${revision}`, metadata: { restoredFromRevision: revision, createdRevision: nextRevision } },
+        data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "article.restore", entityType: "Article", entityId: id, summary: `Restored ${current.section.slug}/${current.slug} from revision ${revision}`, metadata: { restoredFromRevision: revision, createdRevision: nextRevision } },
       });
       return restored;
     });

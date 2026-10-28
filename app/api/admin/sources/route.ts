@@ -18,10 +18,10 @@ const sourceSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.view");
     const q = new URL(request.url).searchParams.get("q")?.trim().slice(0, 100);
     const sources = await prisma.source.findMany({
-      where: q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { organization: { contains: q, mode: "insensitive" } }, { url: { contains: q, mode: "insensitive" } }] } : undefined,
+      where: { companyId: actor.companyId, ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { organization: { contains: q, mode: "insensitive" as const } }, { url: { contains: q, mode: "insensitive" as const } }] } : {}) },
       include: { _count: { select: { articleSources: true } } },
       orderBy: [{ organization: "asc" }, { title: "asc" }],
       take: 100,
@@ -34,13 +34,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "sources.manage");
     const parsed = sourceSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid source payload.", issues: parsed.error.flatten() }, { status: 400 });
     const source = await prisma.$transaction(async (tx) => {
-      const created = await tx.source.create({ data: parsed.data });
+      const created = await tx.source.create({ data: { ...parsed.data, companyId: actor.companyId } });
       await tx.auditEvent.create({
         data: {
+          companyId: actor.companyId,
           actorId: actor.id,
           actorEmail: actor.email,
           action: "source.create",

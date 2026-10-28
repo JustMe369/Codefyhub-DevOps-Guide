@@ -5,7 +5,7 @@ import { searchKnowledge } from "@/lib/search";
 const querySchema = z.object({
   q: z.string().trim().min(2).max(100),
   section: z.string().regex(/^[a-z0-9-]+$/).optional(),
-  type: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH"]).optional(),
+  type: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"]).optional(),
   difficulty: z.enum(["FOUNDATION", "INTERMEDIATE", "ADVANCED"]).optional()
 });
 

@@ -11,15 +11,15 @@ const payloadSchema = z.object({ sourceIds: z.array(z.string().cuid()).max(100) 
 
 export async function PUT(request: Request, context: Context) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "sources.manage");
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid source assignment." }, { status: 400 });
     const sourceIds = [...new Set(parsed.data.sourceIds)];
     const { id } = await context.params;
     const result = await prisma.$transaction(async (tx) => {
       const [article, sourceCount] = await Promise.all([
-        tx.article.findUnique({ where: { id }, select: { id: true, slug: true, section: { select: { slug: true } } } }),
-        tx.source.count({ where: { id: { in: sourceIds } } }),
+        tx.article.findFirst({ where: { id, companyId: actor.companyId }, select: { id: true, slug: true, section: { select: { slug: true } } } }),
+        tx.source.count({ where: { id: { in: sourceIds }, companyId: actor.companyId } }),
       ]);
       if (!article) return null;
       if (sourceCount !== sourceIds.length) throw new Error("One or more sources do not exist.");
@@ -27,6 +27,7 @@ export async function PUT(request: Request, context: Context) {
       if (sourceIds.length > 0) await tx.articleSource.createMany({ data: sourceIds.map((sourceId) => ({ articleId: id, sourceId })) });
       await tx.auditEvent.create({
         data: {
+          companyId: actor.companyId,
           actorId: actor.id,
           actorEmail: actor.email,
           action: "article.sources.update",

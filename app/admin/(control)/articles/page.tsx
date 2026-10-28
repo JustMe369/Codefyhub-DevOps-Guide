@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { requireAdminIdentity } from "@/lib/admin/authz";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminArticlesPage() {
+  const actor = await requireAdminIdentity(await headers(), "content.view");
   const articles = await prisma.article.findMany({
+    where: { companyId: actor.companyId },
     include: { section: { select: { title: true, slug: true } }, _count: { select: { versions: true, articleSources: true } } },
     orderBy: { updatedAt: "desc" },
   });

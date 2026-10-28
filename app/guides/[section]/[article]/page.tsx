@@ -15,7 +15,7 @@ type Props = { params: Promise<{ section: string; article: string }> };
 
 async function findPublishedArticle(sectionSlug: string, articleSlug: string) {
   return prisma.article.findFirst({
-    where: { slug: articleSlug, section: { slug: sectionSlug, status: "PUBLISHED" }, status: "PUBLISHED" },
+    where: { slug: articleSlug, section: { slug: sectionSlug, status: "PUBLISHED" }, status: "PUBLISHED", visibility: "PUBLIC", company: { isPublic: true, status: "ACTIVE" } },
     include: { section: true, articleSources: { include: { source: true } }, articleTags: { include: { tag: true } } }
   });
 }
@@ -37,13 +37,15 @@ export default async function ArticlePage({ params }: Props) {
   const article = await findPublishedArticle(sectionSlug, articleSlug);
   if (!article) notFound();
   const toc = headings(article.body);
-  const siblings = await prisma.article.findMany({ where: { sectionId: article.sectionId, status: "PUBLISHED" }, orderBy: { order: "asc" }, select: { slug: true, title: true, order: true } });
+  const siblings = await prisma.article.findMany({ where: { sectionId: article.sectionId, status: "PUBLISHED", visibility: "PUBLIC" }, orderBy: { order: "asc" }, select: { slug: true, title: true, order: true } });
   const index = siblings.findIndex((item) => item.slug === article.slug);
   const previous = siblings[index - 1];
   const next = siblings[index + 1];
   const relatedRows = article.relatedGuides.length ? await prisma.article.findMany({
     where: {
       status: "PUBLISHED",
+      visibility: "PUBLIC",
+      companyId: article.companyId,
       OR: article.relatedGuides.map((key) => {
         const [section, slug] = key.split("/");
         return { slug, section: { slug: section, status: "PUBLISHED" as const } };

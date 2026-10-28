@@ -21,8 +21,10 @@ export async function searchKnowledge(query: string, filters: SearchFilters = {}
         setweight(to_tsvector('english', a.description), 'B') ||
         setweight(to_tsvector('english', a.body), 'C') ||
         setweight(to_tsvector('english', coalesce((SELECT string_agg(t.name, ' ') FROM "ArticleTag" at JOIN "Tag" t ON t.id = at."tagId" WHERE at."articleId" = a.id), '')), 'B') AS document
-      FROM "Article" a JOIN "Section" s ON s.id = a."sectionId"
-      WHERE a.status = 'PUBLISHED' AND s.status = 'PUBLISHED'
+      FROM "Article" a
+      JOIN "Section" s ON s.id = a."sectionId"
+      JOIN "Company" c ON c.id = a."companyId"
+      WHERE a.status = 'PUBLISHED' AND a.visibility = 'PUBLIC' AND s.status = 'PUBLISHED' AND c."isPublic" = true AND c.status = 'ACTIVE'
     )
     SELECT * FROM (
       SELECT a.id, a.title, a.description, a.slug AS "articleSlug", a."sectionSlug", a."sectionTitle",
@@ -40,8 +42,9 @@ export async function searchKnowledge(query: string, filters: SearchFilters = {}
         'glossary'::text,
         replace(replace(ts_headline('english', g.definition, websearch_to_tsquery('english', ${query}), 'MaxFragments=1, MaxWords=28, MinWords=10'), '<b>', ''), '</b>', ''),
         'REFERENCE'::text, 'FOUNDATION'::text
-      FROM "GlossaryTerm" g
+      FROM "GlossaryTerm" g JOIN "Company" c ON c.id = g."companyId"
       WHERE to_tsvector('english', g.term || ' ' || g.definition) @@ websearch_to_tsquery('english', ${query})
+        AND c."isPublic" = true AND c.status = 'ACTIVE'
         AND CAST(${section} AS text) IS NULL AND CAST(${contentType} AS text) IS NULL AND CAST(${difficulty} AS text) IS NULL
     ) results ORDER BY rank DESC, title ASC LIMIT ${limit}
   `);

@@ -10,6 +10,7 @@ import { advancedAppendices } from "./advanced-appendices";
 config({ path: ".env.local" });
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
+const companyId = "codefyhub-company";
 const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
 const verified = new Date(`${verificationValue}T00:00:00.000Z`);
 const reverifyExisting = process.env.CONTENT_REVERIFY === "true";
@@ -1061,20 +1062,25 @@ const glossary = [
 
 async function main() {
   await prisma.$transaction(async (db) => {
+  await db.company.upsert({
+    where: { id: companyId },
+    update: { name: "Codefyhub", slug: "codefyhub", status: "ACTIVE", isPublic: true },
+    create: { id: companyId, name: "Codefyhub", slug: "codefyhub", status: "ACTIVE", isPublic: true },
+  });
   const sectionMap = new Map<string, string>();
   for (const section of sections) {
-    const current = await db.section.findUnique({ where: { slug: section.slug } });
+    const current = await db.section.findUnique({ where: { companyId_slug: { companyId, slug: section.slug } } });
     const changed = !current || current.title !== section.title || current.summary !== section.summary || current.icon !== section.icon || current.order !== section.order || current.status !== "PUBLISHED";
     const row = current
       ? changed ? await db.section.update({ where: { id: current.id }, data: { ...section, status: "PUBLISHED" } }) : current
-      : await db.section.create({ data: section });
+      : await db.section.create({ data: { ...section, companyId } });
     sectionMap.set(section.slug, row.id);
   }
 
-  await db.section.updateMany({ where: { slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
+  await db.section.updateMany({ where: { companyId, slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
 
   const expectedKeys = new Set(articles.map((article) => `${article.section}/${article.slug}`));
-  const existingArticles = await db.article.findMany({ include: { section: { select: { slug: true } } } });
+  const existingArticles = await db.article.findMany({ where: { companyId }, include: { section: { select: { slug: true } } } });
   for (const existing of existingArticles) {
     if (expectedKeys.has(`${existing.section.slug}/${existing.slug}`)) continue;
     if (existing.status === "ARCHIVED") continue;
@@ -1090,6 +1096,7 @@ async function main() {
     const reviewedAt = article.reviewedAt ? new Date(`${article.reviewedAt}T00:00:00.000Z`) : verified;
     const data = {
       sectionId,
+      companyId,
       slug: article.slug,
       title: article.title,
       description: article.description,
@@ -1106,6 +1113,7 @@ async function main() {
       readingMinutes: Math.max(2, Math.ceil(article.body.trim().split(/\s+/).length / 180)),
       order: article.order,
       status: "PUBLISHED" as const,
+      visibility: "PUBLIC" as const,
       publishedAt: verified,
       lastVerifiedAt: reviewedAt
       ,verifiedBy
@@ -1146,9 +1154,9 @@ async function main() {
     await db.articleTag.deleteMany({ where: { articleId: row.id } });
     for (const tagSlug of article.tags ?? []) {
       const tag = await db.tag.upsert({
-        where: { slug: tagSlug },
+        where: { companyId_slug: { companyId, slug: tagSlug } },
         update: { name: tagSlug.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ") },
-        create: { slug: tagSlug, name: tagSlug.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ") }
+        create: { companyId, slug: tagSlug, name: tagSlug.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ") }
       });
       await db.articleTag.create({ data: { articleId: row.id, tagId: tag.id } });
     }
@@ -1158,9 +1166,9 @@ async function main() {
   for (const sourceWithSections of sourceRows) {
     const { sections: sourceSections, ...source } = sourceWithSections;
     const row = await db.source.upsert({
-      where: { url: source.url },
+      where: { companyId_url: { companyId, url: source.url } },
       update: { title: source.title, organization: source.organization, sourceType: source.sourceType, ...(reverifyExisting ? { accessedAt: verified, lastVerifiedAt: verified, verifiedBy } : {}) },
-      create: { ...source, accessedAt: verified, lastVerifiedAt: verified, verifiedBy }
+      create: { ...source, companyId, accessedAt: verified, lastVerifiedAt: verified, verifiedBy }
     });
     createdSources.push({ row, sections: sourceSections });
   }
@@ -1186,9 +1194,9 @@ async function main() {
   const related = articleMap.get("start-here/reference-architecture");
   for (const [term, definition] of glossary) {
     await db.glossaryTerm.upsert({
-      where: { term },
+      where: { companyId_term: { companyId, term } },
       update: { definition, relatedArticleId: related },
-      create: { term, definition, relatedArticleId: related }
+      create: { companyId, term, definition, relatedArticleId: related }
     });
   }
 

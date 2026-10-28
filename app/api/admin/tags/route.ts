@@ -8,8 +8,9 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.view");
     const tags = await prisma.tag.findMany({
+      where: { companyId: actor.companyId },
       include: { _count: { select: { articleTags: true } } },
       orderBy: { name: "asc" },
     });
@@ -21,13 +22,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "structure.manage");
     const parsed = tagSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid tag payload.", issues: parsed.error.flatten() }, { status: 400 });
     const tag = await prisma.$transaction(async (tx) => {
-      const created = await tx.tag.create({ data: parsed.data });
+      const created = await tx.tag.create({ data: { ...parsed.data, companyId: actor.companyId } });
       await tx.auditEvent.create({
-        data: { actorId: actor.id, actorEmail: actor.email, action: "tag.create", entityType: "Tag", entityId: created.id, summary: `Created tag ${created.name}` },
+        data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "tag.create", entityType: "Tag", entityId: created.id, summary: `Created tag ${created.name}` },
       });
       return created;
     });

@@ -11,7 +11,7 @@ const payloadSchema = z.object({ expectedUpdatedAt: z.coerce.date() });
 
 export async function POST(request: Request, context: Context) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.publish");
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid publication payload." }, { status: 400 });
     const { id } = await context.params;

@@ -11,10 +11,10 @@ type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: Context) {
   try {
-    await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.view");
     const { id } = await context.params;
-    const article = await prisma.article.findUnique({
-      where: { id },
+    const article = await prisma.article.findFirst({
+      where: { id, companyId: actor.companyId },
       include: {
         section: true,
         versions: { orderBy: { revision: "desc" }, take: 20, include: { createdBy: { select: { name: true, email: true } } } },
@@ -31,7 +31,7 @@ export async function GET(request: Request, context: Context) {
 
 export async function PATCH(request: Request, context: Context) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.edit");
     const parsed = updateArticleSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid article payload.", issues: parsed.error.flatten() }, { status: 400 });
     const { id } = await context.params;

@@ -4,18 +4,10 @@ import { admin } from "better-auth/plugins/admin";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
 
-function configuredAdminEmails() {
-  return new Set(
-    (process.env.ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
 function createAuth() {
   return betterAuth({
     database: prismaAdapter(prisma, { provider: "postgresql" }),
+    ...(process.env.NODE_ENV === "production" ? {} : { trustedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"] }),
     advanced: { database: { joins: true } },
     emailAndPassword: {
       enabled: true,
@@ -33,24 +25,6 @@ function createAuth() {
         : {},
     account: {
       accountLinking: { disableImplicitLinking: true },
-    },
-    user: {
-      validateUserInfo: ({ user }) => {
-        const allowed = configuredAdminEmails();
-        if (!user.email || !allowed.has(user.email.toLowerCase())) {
-          return {
-            error: "admin_access_denied",
-            errorDescription: "This identity is not allowed to access the control plane.",
-          };
-        }
-      },
-    },
-    databaseHooks: {
-      user: {
-        create: {
-          before: async (user) => ({ data: { ...user, role: "admin" } }),
-        },
-      },
     },
     session: {
       cookieCache: { enabled: true, maxAge: 5 * 60 },

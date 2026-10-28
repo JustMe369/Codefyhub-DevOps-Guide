@@ -44,13 +44,14 @@ function articleSnapshot(article: {
 export async function createArticle(input: CreateArticleInput, actor: AdminIdentity) {
   const { changeSummary, ...fields } = input;
   return prisma.$transaction(async (tx) => {
-    const section = await tx.section.findUnique({ where: { id: fields.sectionId }, select: { id: true, slug: true } });
+    const section = await tx.section.findFirst({ where: { id: fields.sectionId, companyId: actor.companyId }, select: { id: true, slug: true } });
     if (!section) throw new Error("Section not found.");
 
     const order = fields.order ?? ((await tx.article.aggregate({ where: { sectionId: section.id }, _max: { order: true } }))._max.order ?? 0) + 1;
     const article = await tx.article.create({
       data: {
         ...fields,
+        companyId: actor.companyId,
         order,
         status: "DRAFT",
         publishedAt: null,
@@ -68,6 +69,7 @@ export async function createArticle(input: CreateArticleInput, actor: AdminIdent
     });
     await tx.auditEvent.create({
       data: {
+        companyId: actor.companyId,
         actorId: actor.id,
         actorEmail: actor.email,
         action: "article.create",
@@ -83,8 +85,8 @@ export async function createArticle(input: CreateArticleInput, actor: AdminIdent
 
 export async function updateArticle(id: string, input: UpdateArticleInput, actor: AdminIdentity) {
   return prisma.$transaction(async (tx) => {
-    const current = await tx.article.findUnique({
-      where: { id },
+    const current = await tx.article.findFirst({
+      where: { id, companyId: actor.companyId },
       include: { versions: { orderBy: { revision: "desc" }, take: 1 }, section: { select: { slug: true } } },
     });
     if (!current) return null;
@@ -104,6 +106,7 @@ export async function updateArticle(id: string, input: UpdateArticleInput, actor
     });
     await tx.auditEvent.create({
       data: {
+        companyId: actor.companyId,
         actorId: actor.id,
         actorEmail: actor.email,
         action: "article.update",
@@ -119,8 +122,8 @@ export async function updateArticle(id: string, input: UpdateArticleInput, actor
 
 export async function publishArticle(id: string, expectedUpdatedAt: Date, actor: AdminIdentity) {
   return prisma.$transaction(async (tx) => {
-    const current = await tx.article.findUnique({
-      where: { id },
+    const current = await tx.article.findFirst({
+      where: { id, companyId: actor.companyId },
       include: { articleSources: { select: { sourceId: true } }, section: { select: { slug: true } } },
     });
     if (!current) return null;
@@ -134,6 +137,7 @@ export async function publishArticle(id: string, expectedUpdatedAt: Date, actor:
     });
     await tx.auditEvent.create({
       data: {
+        companyId: actor.companyId,
         actorId: actor.id,
         actorEmail: actor.email,
         action: "article.publish",

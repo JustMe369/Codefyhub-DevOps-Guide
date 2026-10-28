@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+import { requireAdminIdentity } from "@/lib/admin/authz";
+import { adminErrorResponse } from "@/lib/admin/http";
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -28,7 +30,10 @@ interface MetricsSnapshot {
  * In production, these would be consumed from a log aggregator; here we use
  * Redis as a lightweight in-memory metrics store.
  */
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
+  try {
+    const actor = await requireAdminIdentity(request.headers, "ai.manage");
+    if (!actor.isPlatformAdmin) return NextResponse.json({ error: "Platform administrator access is required." }, { status: 403 });
   const metrics: MetricsSnapshot = {
     totalRequests: 0,
     successfulRequests: 0,
@@ -109,7 +114,10 @@ export async function GET(): Promise<NextResponse> {
     }
   }
 
-  return NextResponse.json(metrics);
+    return NextResponse.json(metrics);
+  } catch (error) {
+    return adminErrorResponse(error);
+  }
 }
 
 /**

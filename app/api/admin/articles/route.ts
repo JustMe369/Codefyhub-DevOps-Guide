@@ -9,11 +9,12 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.view");
     const parsed = listArticlesSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
     if (!parsed.success) return NextResponse.json({ error: "Invalid article filters.", issues: parsed.error.flatten() }, { status: 400 });
     const { q, status, section, page, limit } = parsed.data;
     const where = {
+      companyId: actor.companyId,
       ...(status ? { status } : {}),
       ...(section ? { section: { slug: section } } : {}),
       ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { slug: { contains: q, mode: "insensitive" as const } }] } : {}),
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = await requireAdminIdentity(request.headers);
+    const actor = await requireAdminIdentity(request.headers, "content.create");
     const parsed = createArticleSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid article payload.", issues: parsed.error.flatten() }, { status: 400 });
     const article = await createArticle(parsed.data, actor);

@@ -13,6 +13,22 @@ enum ContentStatus {
   ARCHIVED
 }
 
+enum ContentVisibility {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+}
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum Difficulty {
   FOUNDATION
   INTERMEDIATE
@@ -26,6 +42,10 @@ enum ContentType {
   REFERENCE
   CONFIGURATION_RECIPE
   LEARNING_PATH
+  FAQ
+  WORKFLOW
+  ISSUE_SOLUTION
+  POLICY
 }
 
 enum ValidationStatus {
@@ -36,45 +56,54 @@ enum ValidationStatus {
 
 model Section {
   id        String        @id @default(cuid())
-  slug      String        @unique
+  companyId String        @default("codefyhub-company")
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  slug      String
   title     String
   summary   String
   icon      String
-  order     Int           @unique
+  order     Int
   status    ContentStatus @default(PUBLISHED)
   articles  Article[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+
+  @@unique([companyId, slug])
+  @@unique([companyId, order])
+  @@index([companyId, status])
 }
 
 model Article {
-  id                  String           @id @default(cuid())
+  id                  String                      @id @default(cuid())
+  companyId           String                      @default("codefyhub-company")
+  company             Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sectionId           String
-  section             Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section             Section                     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   slug                String
   title               String
   description         String
-  body                String           @db.Text
+  body                String                      @db.Text
   embedding           Unsupported("vector(384)")?
-  difficulty          Difficulty       @default(FOUNDATION)
-  contentType         ContentType      @default(CONCEPT)
-  validationStatus    ValidationStatus @default(DRAFT)
-  applicablePlatforms String[]         @default([])
-  applicableVersions  String[]         @default([])
-  prerequisites       String[]         @default([])
-  relatedGuides       String[]         @default([])
+  difficulty          Difficulty                  @default(FOUNDATION)
+  contentType         ContentType                 @default(CONCEPT)
+  validationStatus    ValidationStatus            @default(DRAFT)
+  applicablePlatforms String[]                    @default([])
+  applicableVersions  String[]                    @default([])
+  prerequisites       String[]                    @default([])
+  relatedGuides       String[]                    @default([])
   testedAt            DateTime?
   testEnvironment     String?
   readingMinutes      Int
   order               Int
-  status              ContentStatus    @default(PUBLISHED)
+  status              ContentStatus               @default(PUBLISHED)
+  visibility          ContentVisibility           @default(INTERNAL)
   publishedAt         DateTime?
   lastVerifiedAt      DateTime
-  verifiedBy          String           @default("Codefyhub Editorial Team")
-  verificationMethod  String           @default("Documentation and lab review")
-  testedVersions      String           @default("See article and source documentation")
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  verifiedBy          String                      @default("Codefyhub Editorial Team")
+  verificationMethod  String                      @default("Documentation and lab review")
+  testedVersions      String                      @default("See article and source documentation")
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
   versions            ArticleVersion[]
   articleSources      ArticleSource[]
   articleTags         ArticleTag[]
@@ -82,8 +111,10 @@ model Article {
 
   @@unique([sectionId, slug])
   @@unique([sectionId, order])
+  @@index([companyId, status, visibility])
   @@index([status, publishedAt])
   @@index([title])
+  @@index([contentType, difficulty, validationStatus], map: "Article_content_discovery_idx")
 }
 
 model ArticleVersion {
@@ -103,14 +134,19 @@ model ArticleVersion {
 
 model Source {
   id             String          @id @default(cuid())
+  companyId      String          @default("codefyhub-company")
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title          String
   organization   String
-  url            String          @unique
+  url            String
   sourceType     String
-  accessedAt     DateTime
+  accessedAt     DateTime        @default(now())
   lastVerifiedAt DateTime
   verifiedBy     String          @default("Codefyhub Editorial Team")
   articleSources ArticleSource[]
+
+  @@unique([companyId, url])
+  @@index([companyId, organization])
 }
 
 model ArticleSource {
@@ -126,9 +162,15 @@ model ArticleSource {
 
 model Tag {
   id          String       @id @default(cuid())
-  slug        String       @unique
-  name        String       @unique
+  companyId   String       @default("codefyhub-company")
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  slug        String
+  name        String
   articleTags ArticleTag[]
+
+  @@unique([companyId, slug])
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model ArticleTag {
@@ -142,13 +184,87 @@ model ArticleTag {
 
 model GlossaryTerm {
   id               String   @id @default(cuid())
-  term             String   @unique
+  companyId        String   @default("codefyhub-company")
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  term             String
   definition       String   @db.Text
   relatedArticleId String?
   relatedArticle   Article? @relation(fields: [relatedArticleId], references: [id], onDelete: SetNull)
   createdAt        DateTime @default(now())
 
-  @@index([term])
+  @@unique([companyId, term])
+  @@index([companyId, term])
+}
+
+model Company {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  status      CompanyStatus  @default(ACTIVE)
+  isPublic    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  memberships Membership[]
+  roles       CompanyRole[]
+  sections    Section[]
+  articles    Article[]
+  sources     Source[]
+  tags        Tag[]
+  glossary    GlossaryTerm[]
+  auditEvents AuditEvent[]
+}
+
+model Membership {
+  id            String           @id @default(cuid())
+  companyId     String
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId        String
+  role          CompanyRole      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  status        MembershipStatus @default(ACTIVE)
+  accessVersion Int              @default(1)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([companyId, userId])
+  @@index([userId, status])
+  @@index([companyId, roleId])
+}
+
+model CompanyRole {
+  id          String           @id @default(cuid())
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String
+  description String
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  memberships Membership[]
+  permissions RolePermission[]
+
+  @@unique([companyId, slug])
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Permission {
+  key         String           @id
+  group       String
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  role         CompanyRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission  @relation(fields: [permissionId], references: [key], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
 }
 
 model User {
@@ -167,6 +283,7 @@ model User {
   accounts        Account[]
   articleVersions ArticleVersion[]
   auditEvents     AuditEvent[]
+  memberships     Membership[]
 
   @@unique([email])
   @@map("user")
@@ -174,6 +291,8 @@ model User {
 
 model AuditEvent {
   id         String   @id @default(cuid())
+  companyId  String   @default("codefyhub-company")
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actorId    String?
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   actorEmail String
@@ -184,8 +303,8 @@ model AuditEvent {
   metadata   Json?
   createdAt  DateTime @default(now())
 
-  @@index([createdAt])
-  @@index([entityType, entityId])
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId])
 }
 
 model Session {

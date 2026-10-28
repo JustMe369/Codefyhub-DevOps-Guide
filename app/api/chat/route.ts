@@ -314,6 +314,7 @@ async function expandQueryWithGlossary(query: string): Promise<string[]> {
   try {
     const terms = await prisma.glossaryTerm.findMany({
       where: {
+        company: { isPublic: true, status: "ACTIVE" },
         term: { contains: query, mode: "insensitive" },
       },
       select: { term: true, definition: true },
@@ -377,7 +378,11 @@ async function semanticSearchArticles(
         1 - (a."embedding" <=> '${embeddingLiteral}'::vector) AS similarity
       FROM "Article" a
       JOIN "Section" s ON a."sectionId" = s."id"
+      JOIN "Company" c ON a."companyId" = c."id"
       WHERE a."status" = 'PUBLISHED'
+        AND a."visibility" = 'PUBLIC'
+        AND c."isPublic" = true
+        AND c."status" = 'ACTIVE'
         AND a."embedding" IS NOT NULL
       ORDER BY a."embedding" <=> '${embeddingLiteral}'::vector
       LIMIT ${limit}
@@ -461,6 +466,8 @@ async function retrieveRelevantArticles(query: string, limit: number = 3): Promi
     const keywordArticles = await prisma.article.findMany({
       where: {
         status: "PUBLISHED",
+        visibility: "PUBLIC",
+        company: { isPublic: true, status: "ACTIVE" },
         OR: expandedQueries.flatMap((q) => [
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },
