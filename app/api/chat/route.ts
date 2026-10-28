@@ -791,7 +791,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     "http://localhost:3000",
     "http://127.0.0.1:3000",
   ];
-  if (origin && !allowedOrigins.includes(origin) && !origin.startsWith("https://")) {
+  if (origin && !allowedOrigins.includes(origin)) {
     log({ reqId, ts: new Date().toISOString(), event: "rejected_origin", ip, details: { origin } });
     return NextResponse.json({ error: "Request origin not allowed." }, { status: 403 });
   }
