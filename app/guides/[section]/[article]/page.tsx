@@ -92,7 +92,7 @@ export default async function ArticlePage({ params }: Props) {
             testedAt={article.testedAt}
             testEnvironment={article.testEnvironment}
           />
-          <div style={{ marginTop: 22 }}><ArticleProgress articleId={article.id} /></div>
+          <div className="article-progress-wrapper"><ArticleProgress articleId={article.id} /></div>
         </header>
         <MarkdownArticle body={article.body} />
         {article.slug === "mdadm-zfs" && (

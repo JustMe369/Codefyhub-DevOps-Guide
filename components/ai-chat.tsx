@@ -601,7 +601,7 @@ export function AIChat() {
       {/* Animated gradient mesh background */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-text/5 blur-[120px] animate-pulse" style={{ animationDelay: "2s" }}></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-text/5 blur-[120px] animate-pulse ai-chat-bg-anim"></div>
         <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-accent/10 blur-[80px]"></div>
       </div>
 
@@ -696,11 +696,7 @@ export function AIChat() {
                 return (
                   <div
                     key={msg.id}
-                    className={`flex gap-3 max-w-[92%] ${
-                      isUser ? "ml-auto flex-row-reverse" : "mr-auto"
-                    } animate-[fadeInUp_0.4s_ease-out]`}
-                    style={{ animationDelay: `${idx * 0.05}s` }}
-                  >
+                    className={`flex gap-3 max-w-[92%] ${isUser ? "ml-auto flex-row-reverse" : "mr-auto"} animate-[fadeInUp_0.4s_ease-out]`} style={{ animationDelay: `${idx * 0.05}s` }}>
                     <div
                       className={`rounded-2xl p-4 text-sm leading-relaxed whitespace-pre-wrap shadow-sm transition-all duration-300 relative group ${
                         isUser
@@ -837,14 +833,14 @@ export function AIChat() {
                         {detectedLanguage === "ar" ? "الذكاء الاصطناعي يفكر" : "AI is thinking"}
                       </span>
                       <div className="flex gap-1">
-                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite]" style={{ animationDelay: "0s" }}></div>
-                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite]" style={{ animationDelay: "0.2s" }}></div>
-                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite]" style={{ animationDelay: "0.4s" }}></div>
+                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite] ai-chat-dot-0s"></div>
+                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite] ai-chat-dot-200ms"></div>
+                        <div className="w-2 h-2 rounded-full bg-accent animate-[bounce_0.6s_infinite] ai-chat-dot-400ms"></div>
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
                       <div className="w-20 h-1.5 rounded-full bg-border/30" />
-                      <div className="w-14 h-1.5 rounded-full bg-border/30" style={{ animationDelay: "0.2s" }} />
+                      <div className="w-14 h-1.5 rounded-full bg-border/30 ai-chat-bar-200ms" />
                     </div>
                   </div>
                   <Loader2 className="w-4 h-4 text-accent animate-spin" />

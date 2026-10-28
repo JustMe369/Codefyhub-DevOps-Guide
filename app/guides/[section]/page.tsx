@@ -31,7 +31,7 @@ export default async function SectionPage({ params }: Props) {
     </Link>
   );
   return (
-    <div style={{ gridColumn: "2 / -1" }}>
+    <div className="guide-list-spacer">
       <div className="page-hero">
         <div className="eyebrow">Section {String(section.order).padStart(2, "0")}</div>
         <h1>{section.title}</h1>
