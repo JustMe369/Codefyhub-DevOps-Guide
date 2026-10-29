@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Building2, CalendarCheck, FilePlus2, Link2, Save, Trash2 } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Building2, CalendarCheck, FilePlus2, Link2, Save, Search, Trash2 } from "lucide-react";
 
 type Source = { id: string; title: string; organization: string; url: string; sourceType: string; lastVerifiedAt: string; verifiedBy: string; _count: { articleSources: number } };
 
@@ -9,6 +9,12 @@ export function SourceManager({ initialSources, canManage }: { initialSources: S
   const [sources, setSources] = useState(initialSources);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const filteredSources = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return sources;
+    return sources.filter((source) => `${source.title} ${source.organization} ${source.url} ${source.sourceType} ${source.verifiedBy}`.toLowerCase().includes(normalized));
+  }, [query, sources]);
 
   async function addSource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,9 +99,10 @@ export function SourceManager({ initialSources, canManage }: { initialSources: S
     </section>}
 
     <section className="admin-panel source-library">
-      <div className="admin-panel-heading source-library-heading"><div><h2>Evidence library</h2><p>{sources.length} reference{sources.length === 1 ? "" : "s"} · review dates and guide usage at a glance</p></div><span>{canManage ? "Editable" : "Read only"}</span></div>
+      <div className="admin-panel-heading source-library-heading"><div><h2>Evidence library</h2><p>{filteredSources.length} of {sources.length} reference{sources.length === 1 ? "" : "s"} · review dates and guide usage at a glance</p></div><span>{canManage ? "Editable" : "Read only"}</span></div>
       {message && <p className="admin-manager-message source-manager-message" role="status" aria-live="polite">{message}</p>}
-      {sources.length === 0 ? <div className="source-empty-state"><Link2 size={24} /><h3>No sources yet</h3><p>Add an accountable source, then link it to an article as evidence.</p></div> : <div className="source-card-list">{sources.map((source) => <article className="source-card" key={source.id}>
+      {sources.length > 0 && <label className="source-search"><Search size={16} /><span className="sr-only">Search sources</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, organization, URL, or type…" /></label>}
+      {sources.length === 0 ? <div className="source-empty-state"><Link2 size={24} /><h3>No sources yet</h3><p>Add an accountable source, then link it to an article as evidence.</p></div> : filteredSources.length === 0 ? <div className="source-empty-state"><Search size={24} /><h3>No matching sources</h3><p>Try another title, organization, or source type.</p></div> : <div className="source-card-list">{filteredSources.map((source) => <article className="source-card" key={source.id}>
         <div className="source-card-heading"><div className="source-mark"><Building2 size={18} /></div><div><strong>{source.organization}</strong><span>{source._count.articleSources} linked guide{source._count.articleSources === 1 ? "" : "s"}</span></div><span className="source-type-badge">{source.sourceType}</span></div>
         <div className="source-fields">
           <label>Source title<input aria-label="Source title" disabled={!canManage} value={source.title} maxLength={180} onChange={(event) => setSource(source.id, "title", event.target.value)} /></label>
