@@ -5,16 +5,15 @@ import { FilePlus2, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type SectionOption = { id: string; title: string };
-type KnowledgeType = "FAQ" | "WORKFLOW" | "ISSUE_SOLUTION" | "POLICY";
+type KnowledgeType = "FAQ" | "ISSUE_SOLUTION" | "POLICY";
 
 const typeLabels: Record<KnowledgeType, string> = {
   FAQ: "Question & answer",
-  WORKFLOW: "Workflow",
   ISSUE_SOLUTION: "Issue solution",
   POLICY: "Policy",
 };
 
-export function KnowledgeCreator({ sections, initialType = "WORKFLOW" }: { sections: SectionOption[]; initialType?: KnowledgeType }) {
+export function KnowledgeCreator({ sections, initialType = "FAQ" }: { sections: SectionOption[]; initialType?: KnowledgeType }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

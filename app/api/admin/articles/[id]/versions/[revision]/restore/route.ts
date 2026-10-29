@@ -12,7 +12,7 @@ const payloadSchema = z.object({ expectedUpdatedAt: z.coerce.date(), changeSumma
 type Snapshot = {
   sectionId?: string; slug?: string;
   title?: string; description?: string; difficulty?: "FOUNDATION" | "INTERMEDIATE" | "ADVANCED";
-  contentType?: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH" | "FAQ" | "WORKFLOW" | "ISSUE_SOLUTION" | "POLICY";
+  contentType?: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH" | "FAQ" | "ISSUE_SOLUTION" | "POLICY";
   validationStatus?: "DRAFT" | "SOURCE_REVIEWED" | "LAB_TESTED"; readingMinutes?: number;
   visibility?: "PUBLIC" | "INTERNAL" | "RESTRICTED";
   applicablePlatforms?: string[]; applicableVersions?: string[]; prerequisites?: string[]; relatedGuides?: string[];

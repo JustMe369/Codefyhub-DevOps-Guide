@@ -11,18 +11,18 @@ test("platform administrator can create and fully manage company knowledge", asy
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 30_000 });
 
-  await page.goto("/admin/articles/new?type=WORKFLOW");
+  await page.goto("/admin/articles/new?type=FAQ");
   await expect(page.getByRole("heading", { name: "New knowledge" })).toBeVisible();
-  const workflowTitle = `E2E admin workflow ${testInfo.project.name}`;
-  await page.getByLabel("Title").fill(workflowTitle);
-  await page.getByLabel("Description").fill("Temporary governed workflow created to verify the complete administrator control path.");
+  const articleTitle = `E2E admin article ${testInfo.project.name}`;
+  await page.getByLabel("Title").fill(articleTitle);
+  await page.getByLabel("Description").fill("Temporary governed article created to verify the complete administrator control path.");
   await page.getByRole("button", { name: /Create draft and open editor/i }).click();
   await expect(page).toHaveURL(/\/admin\/articles\/[a-z0-9]+$/, { timeout: 30_000 });
-  await expect(page.getByRole("heading", { name: workflowTitle })).toBeVisible();
-  await expect(page.getByLabel("Content type")).toHaveValue("WORKFLOW");
+  await expect(page.getByRole("heading", { name: articleTitle })).toBeVisible();
+  await expect(page.getByLabel("Content type")).toHaveValue("FAQ");
 
   page.on("dialog", async (dialog) => {
-    if (dialog.type() === "prompt") await dialog.accept(workflowTitle);
+    if (dialog.type() === "prompt") await dialog.accept(articleTitle);
     else await dialog.accept();
   });
   await page.getByRole("button", { name: /Delete permanently/i }).click();

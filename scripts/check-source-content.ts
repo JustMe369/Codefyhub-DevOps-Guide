@@ -8,7 +8,6 @@ const errors: string[] = [];
 const requiredByType: Record<string, RegExp[]> = {
   HOW_TO: [/^## Objective and scenario$/m, /^## Applicability and limitations$/m, /^## Prerequisites/m, /^## Verification checklist$/m, /^## Troubleshooting$/m, /^## Rollback and recovery$/m],
   RUNBOOK: [/^## Condition and safety boundary$/m, /^## Trigger symptoms$/m, /^## Decision table$/m, /^## Verification checklist$/m, /^## Troubleshooting matrix$/m, /^## Abort, rollback, and recovery$/m]
-  ,WORKFLOW: [/^## Purpose and ownership$/m, /^## Access requirements$/m, /^## Connection profile$/m, /^## Windows workflow$/m, /^## macOS workflow$/m, /^## iOS and iPadOS workflow$/m, /^## Android workflow$/m, /^## Expected outcome and verification$/m, /^## Troubleshooting$/m, /^## Security and session closeout$/m]
 };
 
 for (const article of articles) {

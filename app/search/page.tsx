@@ -7,7 +7,7 @@ import { searchKnowledge } from "@/lib/search";
 const searchSchema = z.object({
   q: z.string().trim().max(100).catch(""),
   section: z.string().regex(/^[a-z0-9-]+$/).optional().catch(undefined),
-  type: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"]).optional().catch(undefined),
+  type: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "ISSUE_SOLUTION", "POLICY"]).optional().catch(undefined),
   difficulty: z.enum(["FOUNDATION", "INTERMEDIATE", "ADVANCED"]).optional().catch(undefined)
 });
 
@@ -28,7 +28,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <div className="search-large"><input name="q" type="search" defaultValue={parsed.q} placeholder="Try: mdadm --detail, degraded RAID, MTU…" aria-label="Search query" autoFocus /><button className="button button-primary" type="submit"><Search size={16} />Search</button></div>
         <div className="search-filters" aria-label="Search filters">
           <label>Category<select name="section" defaultValue={parsed.section ?? ""}><option value="">All categories</option>{sections.map((section) => <option value={section.slug} key={section.slug}>{section.title}</option>)}</select></label>
-          <label>Content type<select name="type" defaultValue={parsed.type ?? ""}><option value="">All types</option><option value="FAQ">FAQ</option><option value="WORKFLOW">Workflow</option><option value="ISSUE_SOLUTION">Issue solution</option><option value="POLICY">Policy</option><option value="HOW_TO">How-to</option><option value="RUNBOOK">Runbook</option><option value="REFERENCE">Reference</option><option value="CONCEPT">Concept</option><option value="CONFIGURATION_RECIPE">Configuration recipe</option><option value="LEARNING_PATH">Learning path</option></select></label>
+          <label>Content type<select name="type" defaultValue={parsed.type ?? ""}><option value="">All types</option><option value="FAQ">FAQ</option><option value="ISSUE_SOLUTION">Issue solution</option><option value="POLICY">Policy</option><option value="HOW_TO">How-to</option><option value="RUNBOOK">Runbook</option><option value="REFERENCE">Reference</option><option value="CONCEPT">Concept</option><option value="CONFIGURATION_RECIPE">Configuration recipe</option><option value="LEARNING_PATH">Learning path</option></select></label>
           <label>Difficulty<select name="difficulty" defaultValue={parsed.difficulty ?? ""}><option value="">All levels</option><option value="FOUNDATION">Foundation</option><option value="INTERMEDIATE">Intermediate</option><option value="ADVANCED">Advanced</option></select></label>
         </div>
       </form>

@@ -22,7 +22,7 @@ export default async function AdminOverviewPage() {
 
   return (
     <main className="admin-page">
-      <header className="admin-page-header"><div><div className="eyebrow">{actor.companyName} workspace</div><h1>Knowledge control plane</h1><p>Editorial state, provenance, and recent administrative activity.</p></div><div className="admin-header-actions">{actor.permissions.includes("content.create") && <Link href="/admin/articles/new?type=WORKFLOW" className="admin-primary-button"><FilePlus2 size={17} /> New workflow</Link>}<Link href="/admin/articles" className="admin-secondary-button">Manage articles</Link></div></header>
+      <header className="admin-page-header"><div><div className="eyebrow">{actor.companyName} workspace</div><h1>Knowledge control plane</h1><p>Editorial state, provenance, and recent administrative activity.</p></div><div className="admin-header-actions">{actor.permissions.includes("content.create") && <Link href="/admin/articles/new?type=FAQ" className="admin-primary-button"><FilePlus2 size={17} /> New FAQ</Link>}<Link href="/admin/articles" className="admin-secondary-button">Manage articles</Link></div></header>
       <section className="admin-metric-grid" aria-label="Content metrics">
         <article><span>Published</span><strong>{count("PUBLISHED")}</strong></article>
         <article><span>Drafts</span><strong>{count("DRAFT")}</strong></article>
@@ -34,7 +34,7 @@ export default async function AdminOverviewPage() {
         <article><span>Expiring in 30 days</span><strong>{expiringCount}</strong></article>
       </section>
       <section className="admin-control-grid" aria-label="Administration shortcuts">
-        {actor.permissions.includes("content.create") && <Link href="/admin/articles/new"><FilePlus2 size={20} /><span><strong>Create knowledge</strong><small>Workflow, FAQ, issue solution, or policy</small></span></Link>}
+        {actor.permissions.includes("content.create") && <Link href="/admin/articles/new"><FilePlus2 size={20} /><span><strong>Create knowledge</strong><small>FAQ, issue solution, or policy</small></span></Link>}
         {actor.permissions.includes("structure.manage") && <Link href="/admin/taxonomy"><FolderTree size={20} /><span><strong>Manage structure</strong><small>Sections, navigation, and tags</small></span></Link>}
         {actor.permissions.includes("members.view") && <Link href="/admin/members"><Users size={20} /><span><strong>Manage access</strong><small>Members, invitations, and company roles</small></span></Link>}
         {actor.isPlatformAdmin && <Link href="/admin/users"><Settings2 size={20} /><span><strong>Platform controls</strong><small>Administrator email, users, and suspension</small></span></Link>}

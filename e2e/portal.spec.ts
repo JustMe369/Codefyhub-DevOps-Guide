@@ -12,9 +12,6 @@ test("active company member can sign in and read the private knowledge bank", as
   await expect(page).toHaveURL(/\/portal(?:\/)?$/);
   await expect(page.getByRole("heading", { name: /Everything your company knows/i })).toBeVisible();
   await expect(page.getByText("Approved and current documents only")).toBeVisible();
-  await page.goto("/portal/knowledge?type=WORKFLOW");
-  await expect(page.getByRole("heading", { name: "Workflows" })).toBeVisible();
-  await expect(page.getByText(/result/)).toBeVisible();
   await page.goto("/portal/knowledge?type=FAQ");
   await expect(page.getByRole("heading", { name: "Questions & answers" })).toBeVisible();
 });
@@ -25,7 +22,7 @@ test("company portal protects knowledge and presents member sign-in", async ({ p
   await expect(page.getByRole("heading", { name: "Open your knowledge bank" })).toBeVisible();
   await expect(page.getByLabel("Company email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
-  await expect(page.getByText(/workflows, answers, policies, and solutions/i)).toBeVisible();
+  await expect(page.getByText(/answers, policies, and solutions/i)).toBeVisible();
 });
 
 test("company context endpoint rejects unauthenticated switching", async ({ page }) => {

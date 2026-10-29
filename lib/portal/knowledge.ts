@@ -2,12 +2,11 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { getAdminIdentity, canAccessRestrictedKnowledge, type AdminIdentity } from "@/lib/admin/authz";
 
-export const portalContentTypes = ["FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY", "HOW_TO", "RUNBOOK", "REFERENCE"] as const;
+export const portalContentTypes = ["FAQ", "ISSUE_SOLUTION", "POLICY", "HOW_TO", "RUNBOOK", "REFERENCE"] as const;
 export type PortalContentType = (typeof portalContentTypes)[number];
 
 export const portalContentTypeLabels: Record<PortalContentType, string> = {
   FAQ: "Questions & answers",
-  WORKFLOW: "Workflows",
   ISSUE_SOLUTION: "Issue solutions",
   POLICY: "Policies",
   HOW_TO: "How-to guides",

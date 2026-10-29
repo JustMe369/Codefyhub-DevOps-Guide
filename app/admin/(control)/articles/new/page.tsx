@@ -5,12 +5,12 @@ import { KnowledgeCreator } from "@/components/admin/knowledge-creator";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { prisma } from "@/lib/prisma";
 
-const knowledgeTypes = ["FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"] as const;
+const knowledgeTypes = ["FAQ", "ISSUE_SOLUTION", "POLICY"] as const;
 
 export default async function NewKnowledgePage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const actor = await requireAdminIdentity(await headers(), "content.create");
   const params = await searchParams;
-  const initialType = knowledgeTypes.includes(params.type as typeof knowledgeTypes[number]) ? params.type as typeof knowledgeTypes[number] : "WORKFLOW";
+  const initialType = knowledgeTypes.includes(params.type as typeof knowledgeTypes[number]) ? params.type as typeof knowledgeTypes[number] : "FAQ";
   const sections = await prisma.section.findMany({
     where: { companyId: actor.companyId, status: { not: "ARCHIVED" } },
     select: { id: true, title: true },

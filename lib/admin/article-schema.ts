@@ -10,7 +10,7 @@ export const articleFieldsSchema = z.object({
   description: z.string().trim().min(20).max(320),
   body: z.string().trim().min(80).max(500_000),
   difficulty: z.enum(["FOUNDATION", "INTERMEDIATE", "ADVANCED"]),
-  contentType: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"]),
+  contentType: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "ISSUE_SOLUTION", "POLICY"]),
   validationStatus: z.enum(["DRAFT", "SOURCE_REVIEWED", "LAB_TESTED"]),
   visibility: z.enum(["PUBLIC", "INTERNAL", "RESTRICTED"]),
   applicablePlatforms: stringList,

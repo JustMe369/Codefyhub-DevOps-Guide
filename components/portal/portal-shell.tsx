@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BookOpenText, Building2, CircleHelp, GitBranch, Home, LogOut, Search, ShieldCheck, Wrench } from "lucide-react";
+import { BookOpenText, Building2, CircleHelp, Home, LogOut, Search, ShieldCheck, Wrench } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 type PortalIdentity = { name: string; companyId: string; companyName: string; roleName: string };
@@ -11,7 +11,6 @@ type CompanyOption = { id: string; name: string; slug: string; isPublic: boolean
 const navigation = [
   { href: "/portal", label: "Home", icon: Home },
   { href: "/portal/knowledge", label: "All knowledge", icon: BookOpenText },
-  { href: "/portal/knowledge?type=WORKFLOW", label: "Workflows", icon: GitBranch, type: "WORKFLOW" },
   { href: "/portal/knowledge?type=FAQ", label: "Questions & answers", icon: CircleHelp, type: "FAQ" },
   { href: "/portal/knowledge?type=ISSUE_SOLUTION", label: "Issue solutions", icon: Wrench, type: "ISSUE_SOLUTION" },
 ];
