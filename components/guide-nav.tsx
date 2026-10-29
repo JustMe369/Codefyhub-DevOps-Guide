@@ -6,10 +6,10 @@ export async function GuideNav() {
     where: {
       status: "PUBLISHED",
       company: { isPublic: true, status: "ACTIVE" },
-      articles: { some: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" } } },
+      articles: { some: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } },
     },
     orderBy: { order: "asc" },
-    include: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" } }, orderBy: { order: "asc" }, select: { slug: true, title: true } } }
+    include: { articles: { where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { order: "asc" }, select: { slug: true, title: true } } }
   });
   return (
     <>

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BookOpenText, Building2, CircleHelp, Home, LogOut, Search, ShieldCheck, Wrench } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
-type PortalIdentity = { name: string; companyId: string; companyName: string; roleName: string };
+type PortalIdentity = { name: string; companyId: string; companyName: string; hasCompanyLogo: boolean; roleName: string };
 type CompanyOption = { id: string; name: string; slug: string; isPublic: boolean };
 
 const navigation = [
@@ -41,7 +42,7 @@ export function PortalShell({ identity, companies, children }: { identity: Porta
 
   return <div className="portal-shell">
     <header className="portal-header">
-      <Link href="/portal" className="portal-brand"><ShieldCheck size={22} /><span>Codefyhub Knowledge Bank<small>{identity.companyName}</small></span></Link>
+      <Link href="/portal" className="portal-brand">{identity.hasCompanyLogo ? <Image className="portal-brand-logo" src={`/api/portal/company-logo?companyId=${encodeURIComponent(identity.companyId)}`} alt={`${identity.companyName} logo`} width={36} height={36} unoptimized /> : <ShieldCheck size={22} aria-hidden="true" />}<span>Codefyhub Knowledge Bank<small>{identity.companyName}</small></span></Link>
       <label className="portal-company-switcher"><Building2 size={16} /><span className="sr-only">Active company</span><select value={identity.companyId} onChange={(event) => switchCompany(event.target.value)} aria-label="Active company">{companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}</select></label>
       <div className="portal-user"><span><strong>{identity.name}</strong><small>{identity.roleName}</small></span><button type="button" onClick={signOut}><LogOut size={16} /> Sign out</button></div>
     </header>

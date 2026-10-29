@@ -13,6 +13,7 @@ export type AdminIdentity = {
   companyId: string;
   companyName: string;
   companySlug: string;
+  hasCompanyLogo: boolean;
   membershipId: string | null;
   roleId: string | null;
   roleName: string;
@@ -48,7 +49,7 @@ export async function getAdminIdentity(requestHeaders: Headers): Promise<AdminId
       company: { status: "ACTIVE", ...(companyId ? { id: companyId } : {}) },
     },
     include: {
-      company: true,
+      company: { select: { id: true, name: true, slug: true, status: true, logoMimeType: true } },
       role: { include: { permissions: { select: { permissionId: true } } } },
     },
     orderBy: { createdAt: "asc" },
@@ -57,6 +58,7 @@ export async function getAdminIdentity(requestHeaders: Headers): Promise<AdminId
 
   const findPlatformCompany = (companyId?: string | null) => prisma.company.findFirst({
         where: { status: "ACTIVE", ...(companyId ? { id: companyId } : {}) },
+        select: { id: true, name: true, slug: true, status: true, logoMimeType: true },
         orderBy: { createdAt: "asc" },
       });
   const platformCompany = isPlatformAdmin
@@ -73,6 +75,7 @@ export async function getAdminIdentity(requestHeaders: Headers): Promise<AdminId
     companyId: company.id,
     companyName: company.name,
     companySlug: company.slug,
+    hasCompanyLogo: Boolean(company.logoMimeType),
     membershipId: membership?.id ?? null,
     roleId: membership?.roleId ?? null,
     roleName: membership?.role.name ?? (isPlatformAdmin ? "Platform Admin" : "Member"),

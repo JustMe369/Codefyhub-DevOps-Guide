@@ -22,6 +22,8 @@ const fallbackRateLimitMap = new Map<string, { count: number; resetAt: number }>
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
+const FALLBACK_RATE_LIMIT_MAX_KEYS = 10_000;
+let fallbackRateLimitRequests = 0;
 
 async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterMs?: number }> {
   if (redis) {
@@ -43,14 +45,24 @@ async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfte
       }
       return { allowed: true };
     } catch {
-      // Fall through to in-memory fallback
+      if (process.env.NODE_ENV === "production") return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS };
     }
   }
 
+  // Do not silently weaken a distributed production limiter when its service is
+  // absent. In development, use a bounded process-local fallback.
+  if (!redis && process.env.NODE_ENV === "production") return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS };
+
   // In-memory fallback
   const now = Date.now();
+  if (++fallbackRateLimitRequests % 128 === 0) {
+    for (const [key, value] of fallbackRateLimitMap) if (now > value.resetAt) fallbackRateLimitMap.delete(key);
+  }
   const entry = fallbackRateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
+    if (!entry && fallbackRateLimitMap.size >= FALLBACK_RATE_LIMIT_MAX_KEYS) {
+      return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS };
+    }
     fallbackRateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
     return { allowed: true };
   }
@@ -370,7 +382,7 @@ async function semanticSearchArticles(
 
     const accessFilter = companyId
       ? Prisma.sql`a."companyId" = ${companyId} AND a."visibility" IN ('PUBLIC', 'INTERNAL')`
-      : Prisma.sql`a."visibility" = 'PUBLIC' AND c."isPublic" = true AND c."status" = 'ACTIVE'`;
+      : Prisma.sql`a."visibility" = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND c."isPublic" = true AND c."status" = 'ACTIVE'`;
     const rows = await prisma.$queryRaw(Prisma.sql`
       SELECT
         a."id",
@@ -387,6 +399,9 @@ async function semanticSearchArticles(
       JOIN "Section" s ON a."sectionId" = s."id"
       JOIN "Company" c ON a."companyId" = c."id"
       WHERE a."status" = 'PUBLISHED'
+        AND a."reviewStatus" = 'APPROVED'
+        AND s."status" = 'PUBLISHED'
+        AND (a."expiresAt" IS NULL OR a."expiresAt" > CURRENT_TIMESTAMP)
         AND ${accessFilter}
         AND a."embedding" IS NOT NULL
       ORDER BY a."embedding" <=> ${embeddingLiteral}::vector
@@ -471,6 +486,10 @@ async function retrieveRelevantArticles(query: string, limit: number = 3, compan
     const keywordArticles = await prisma.article.findMany({
       where: {
         status: "PUBLISHED",
+        reviewStatus: "APPROVED",
+        section: { status: "PUBLISHED" },
+        AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
+        ...(companyId ? {} : { contentType: { not: "WORKFLOW" as const } }),
         ...(companyId ? { companyId, visibility: { in: ["PUBLIC", "INTERNAL"] as const } } : { visibility: "PUBLIC" as const, company: { isPublic: true, status: "ACTIVE" as const } }),
         OR: expandedQueries.flatMap((q) => [
           { title: { contains: q, mode: "insensitive" } },
@@ -783,7 +802,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   const reqId = makeReqId();
   const startTime = Date.now();
   const forwarded = request.headers.get("x-forwarded-for");
-  const rawIp = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+  const rawIp = request.headers.get("x-real-ip")?.trim()
+    || (process.env.NODE_ENV !== "production" && forwarded ? forwarded.split(",")[0].trim() : "unknown");
   const ip = createHash("sha256").update(`${process.env.BETTER_AUTH_SECRET ?? "local"}:${rawIp}`).digest("hex").slice(0, 24);
   const origin = request.headers.get("origin") ?? "";
 

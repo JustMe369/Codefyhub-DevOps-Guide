@@ -6,10 +6,10 @@ const iconMap = { Compass, HardDrive, Server, Shield: ShieldCheck, Terminal, Net
 
 export default async function HomePage() {
   const [sections, recentArticles] = await Promise.all([prisma.section.findMany({
-    where: { status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } },
+    where: { status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" }, articles: { some: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
     orderBy: { order: "asc" },
-    include: { _count: { select: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" } } } } } }
-  }), prisma.article.findMany({ where: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, company: { isPublic: true, status: "ACTIVE" } }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
+    include: { _count: { select: { articles: { where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } } } }
+  }), prisma.article.findMany({ where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: { isPublic: true, status: "ACTIVE" } }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
 
   return (
     <>

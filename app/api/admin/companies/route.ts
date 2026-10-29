@@ -3,6 +3,7 @@ import { z } from "zod";
 import { provisionCompanyAccess } from "@/lib/admin/companies";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
+import { InvalidCompanyLogoError, parseCompanyLogoDataUrl } from "@/lib/admin/company-logo";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ const companySchema = z.object({
   name: z.string().trim().min(2).max(120),
   slug: z.string().trim().min(2).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   isPublic: z.boolean().default(false),
+  logoDataUrl: z.string().max(720_000).nullable().optional(),
 });
 
 export async function GET(request: Request) {
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
 
     const [companies, total] = await Promise.all([
       prisma.company.findMany({
-        include: { _count: { select: { memberships: true, articles: true, sections: true } } },
+        select: { id: true, name: true, slug: true, status: true, isPublic: true, logoMimeType: true, _count: { select: { memberships: true, articles: true, sections: true } } },
         orderBy: { name: "asc" },
         skip,
         take: limit,
@@ -42,8 +44,17 @@ export async function POST(request: Request) {
     if (!actor.isPlatformAdmin) return NextResponse.json({ error: "Platform administrator access is required." }, { status: 403 });
     const parsed = companySchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid company payload.", issues: parsed.error.flatten() }, { status: 400 });
+    const { logoDataUrl, ...companyData } = parsed.data;
+    let logoData: Uint8Array<ArrayBuffer> | null = null;
+    let logoMimeType: string | null = null;
+    try {
+      if (logoDataUrl) ({ data: logoData, mimeType: logoMimeType } = parseCompanyLogoDataUrl(logoDataUrl));
+    } catch (error) {
+      if (error instanceof InvalidCompanyLogoError) return NextResponse.json({ error: error.message }, { status: 400 });
+      throw error;
+    }
     const company = await prisma.$transaction(async (tx) => {
-      const created = await tx.company.create({ data: parsed.data });
+      const created = await tx.company.create({ data: { ...companyData, logoData, logoMimeType }, select: { id: true, name: true, slug: true, status: true, isPublic: true, logoMimeType: true } });
       await provisionCompanyAccess(tx, created.id);
       await tx.auditEvent.create({
         data: {

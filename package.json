@@ -26,6 +26,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",
+    "e2e:bootstrap-member": "tsx scripts/bootstrap-e2e-member.ts",
     "admin:check": "tsx scripts/check-admin-readiness.ts",
     "test": "vitest run lib",
     "test:e2e": "playwright test"

@@ -66,9 +66,11 @@ export function StudioWorkspace({ sections, canCreate, canEdit, canReview, canPu
 
   async function handleReview(action: "submit" | "approve" | "request_changes") {
     if (!selectedId || !article) return;
+    const note = action === "request_changes" ? window.prompt("Explain the required changes")?.trim() ?? "" : "";
+    if (action === "request_changes" && !note) return;
     setBusy(true);
     try {
-      const payload = { action, note: "" };
+      const payload = { action, note, expectedUpdatedAt: article.updatedAt };
       const response = await fetch(`/api/admin/articles/${selectedId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,7 +81,7 @@ export function StudioWorkspace({ sections, canCreate, canEdit, canReview, canPu
         setMessage(data.error ?? "Action failed.");
         return;
       }
-      setArticle((prev) => prev ? { ...prev, reviewStatus: data.article.reviewStatus } : prev);
+      setArticle((prev) => prev ? { ...prev, reviewStatus: data.article.reviewStatus, updatedAt: data.article.updatedAt } : prev);
       setMessage(`Article ${action}d.`);
     } catch {
       setMessage("Network error.");
@@ -95,14 +97,14 @@ export function StudioWorkspace({ sections, canCreate, canEdit, canReview, canPu
       const response = await fetch(`/api/admin/articles/${selectedId}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expectedUpdatedAt: new Date() }),
+        body: JSON.stringify({ expectedUpdatedAt: article.updatedAt }),
       });
       const data = await response.json();
       if (!response.ok) {
         setMessage(data.error ?? "Publish failed.");
         return;
       }
-      setArticle((prev) => prev ? { ...prev, status: "PUBLISHED" } : prev);
+      setArticle((prev) => prev ? { ...prev, status: data.article.status, updatedAt: data.article.updatedAt } : prev);
       setMessage("Article published to portal.");
     } catch {
       setMessage("Network error.");
@@ -111,10 +113,10 @@ export function StudioWorkspace({ sections, canCreate, canEdit, canReview, canPu
     }
   }
 
-  const canSubmit = article?.status === "DRAFT" && article.validationStatus !== "DRAFT";
+  const canSubmit = article?.status === "DRAFT" && article.validationStatus !== "DRAFT" && article.articleSources.length > 0;
   const canApprove = canReview && article?.reviewStatus === "IN_REVIEW";
-  const canRequestChanges = canReview && article?.reviewStatus === "CHANGES_REQUESTED";
-  const canPublishArticle = canPublish && article?.reviewStatus === "APPROVED" && article.articleSources.length > 0;
+  const canRequestChanges = canReview && article?.reviewStatus === "IN_REVIEW";
+  const canPublishArticle = canPublish && article?.status === "DRAFT" && article?.reviewStatus === "APPROVED" && article.validationStatus !== "DRAFT" && article.articleSources.length > 0 && article.visibility !== "DRAFT";
   const isPublished = article?.status === "PUBLISHED";
 
   return <section className="studio-shell">
@@ -192,11 +194,8 @@ export function StudioWorkspace({ sections, canCreate, canEdit, canReview, canPu
               <RefreshCw size={13} className={busy ? "animate-spin" : ""} /> Submit for review
             </button>
           )}
-          {article && (canApprove || canRequestChanges) && (
-            <button onClick={() => handleReview(article.reviewStatus === "CHANGES_REQUESTED" ? "request_changes" : "approve")} disabled={busy} className="px-3 py-1.5 text-xs font-medium rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
-              <CheckCircle size={13} /> {article.reviewStatus === "CHANGES_REQUESTED" ? "Request changes" : "Approve for publish"}
-            </button>
-          )}
+          {article && canRequestChanges && <button onClick={() => handleReview("request_changes")} disabled={busy} className="px-3 py-1.5 text-xs font-medium rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed">Request changes</button>}
+          {article && canApprove && <button onClick={() => handleReview("approve")} disabled={busy} className="px-3 py-1.5 text-xs font-medium rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"><CheckCircle size={13} /> Approve for publish</button>}
           {article && canPublishArticle && (
             <button onClick={publishArticle} disabled={busy} className="px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
               <Hash size={13} /> Publish to portal

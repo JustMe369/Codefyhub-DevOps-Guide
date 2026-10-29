@@ -21,8 +21,14 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       DATABASE_URL: postgresql://devops_guide:test_password_only@127.0.0.1:5432/devops_guide?schema=public
+      BETTER_AUTH_SECRET: test-only-e2e-better-auth-secret-not-for-reuse-2026-ci-isolated
+      BETTER_AUTH_URL: http://127.0.0.1:3100
       CONTENT_VERIFIED_AT: 2026-10-26
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
+      ADMIN_BOOTSTRAP_EMAIL: e2e-admin@codefyhub.local
+      ADMIN_BOOTSTRAP_PASSWORD: test-only-e2e-admin-password-not-for-reuse
+      MEMBER_TEST_EMAIL: e2e-member@codefyhub.local
+      MEMBER_TEST_PASSWORD: test-only-e2e-member-password-not-for-reuse
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -34,6 +40,8 @@ jobs:
       - run: npm run db:generate
       - run: npm run db:deploy
       - run: npm run db:seed
+      - run: npm run admin:bootstrap
+      - run: npm run e2e:bootstrap-member
       - run: npm run tenant:check
       - run: npm run content:check
       - run: npm run content:internal-links

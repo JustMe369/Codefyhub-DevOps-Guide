@@ -116,7 +116,7 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
     const note = action === "request_changes" ? window.prompt("Explain the required changes") ?? "" : "";
     if (action === "request_changes" && note.trim().length === 0) { setPending(false); return; }
     try {
-      const response = await fetch(`/api/admin/articles/${article.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, note }) });
+      const response = await fetch(`/api/admin/articles/${article.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, note, expectedUpdatedAt: article.updatedAt }) });
       const result = (await response.json()) as { article?: EditableArticle; error?: string };
       if (!response.ok || !result.article) setError(result.error ?? "Review action failed.");
       else { setArticle((current) => ({ ...current, ...result.article! })); setMessage(action === "submit" ? "Submitted for independent review." : action === "approve" ? "Review approved. The article is ready to publish." : "Changes requested."); }
@@ -191,7 +191,7 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         <div className="admin-status-line"><span className={`admin-status ${article.status.toLowerCase()}`}>{article.status}</span><span>{sourceIds.length} source{sourceIds.length === 1 ? "" : "s"}</span></div>
         <label>Section<select value={article.sectionId} onChange={(event) => setField("sectionId", event.target.value)}>{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select></label>
         <label>Slug<input value={article.slug} onChange={(event) => setField("slug", event.target.value)} /></label>
-        <label>Content type<select value={article.contentType} onChange={(event) => setField("contentType", event.target.value as EditableArticle["contentType"])}>{["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "ISSUE_SOLUTION", "POLICY"].map((value) => <option key={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
+        <label>Content type<select value={article.contentType} onChange={(event) => setField("contentType", event.target.value as EditableArticle["contentType"])}>{["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"].map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
         <label>Difficulty<select value={article.difficulty} onChange={(event) => setField("difficulty", event.target.value as EditableArticle["difficulty"])}>{["FOUNDATION", "INTERMEDIATE", "ADVANCED"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Validation<select value={article.validationStatus} onChange={(event) => setField("validationStatus", event.target.value as EditableArticle["validationStatus"])}>{["DRAFT", "SOURCE_REVIEWED", "LAB_TESTED"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Visibility<select value={article.visibility} onChange={(event) => setField("visibility", event.target.value as EditableArticle["visibility"])}><option value="INTERNAL">Selected workspace</option><option value="PUBLIC">Public</option><option value="DRAFT">Draft</option><option value="RESTRICTED">Restricted</option></select></label>
@@ -212,11 +212,22 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         <label>Change summary<input value={changeSummary} onChange={(event) => setChangeSummary(event.target.value)} placeholder="What changed and why" /></label>
         {message && <p className="admin-success"><CheckCircle2 size={16} /> {message}</p>}
         {error && <p className="admin-error" role="alert">{error}</p>}
+        <section className="editor-publish-readiness" aria-label="Publication readiness">
+          <div><strong>Publication readiness</strong><span>{article.status === "PUBLISHED" ? "Live" : "Checklist"}</span></div>
+          <ul>
+            <li className={article.validationStatus !== "DRAFT" ? "ready" : ""}><CheckCircle2 size={14} /> Technical source review complete</li>
+            <li className={sourceIds.length > 0 ? "ready" : ""}><CheckCircle2 size={14} /> Evidence source attached</li>
+            <li className={article.reviewStatus === "APPROVED" ? "ready" : ""}><CheckCircle2 size={14} /> Independent review approved</li>
+            <li className={article.visibility !== "DRAFT" ? "ready" : ""}><CheckCircle2 size={14} /> Reader visibility configured</li>
+            <li className={canPublish ? "ready" : ""}><CheckCircle2 size={14} /> Publish permission available</li>
+          </ul>
+          {article.contentType === "WORKFLOW" && <p>Workflows publish to the Company Portal. Set visibility to Selected workspace or Restricted; Draft visibility hides them from readers.</p>}
+        </section>
         <div className="admin-editor-actions">
           <button type="button" onClick={save} disabled={pending || changeSummary.trim().length < 3}><Save size={16} /> Save revision</button>
           {article.reviewStatus !== "IN_REVIEW" && article.reviewStatus !== "APPROVED" && <button type="button" onClick={() => review("submit")} disabled={pending || article.validationStatus === "DRAFT" || sourceIds.length === 0}><Send size={16} /> Submit review</button>}
           {canReview && article.reviewStatus === "IN_REVIEW" && <><button type="button" onClick={() => review("request_changes")} disabled={pending}>Request changes</button><button type="button" onClick={() => review("approve")} disabled={pending}>Approve</button></>}
-          {canPublish && <button type="button" className="admin-primary-button" onClick={publish} disabled={pending || article.reviewStatus !== "APPROVED"}><Send size={16} /> Publish</button>}
+          {canPublish && <button type="button" className="admin-primary-button" onClick={publish} disabled={pending || article.reviewStatus !== "APPROVED" || article.validationStatus === "DRAFT" || sourceIds.length === 0 || article.visibility === "DRAFT"}><Send size={16} /> Publish</button>}
           <button type="button" className="admin-danger-button" onClick={() => removeArticle(false)} disabled={pending}><Trash2 size={16} /> Archive</button>
           {isPlatformAdmin && <button type="button" className="admin-danger-button" onClick={() => removeArticle(true)} disabled={pending}><Trash2 size={16} /> Delete permanently</button>}
         </div>

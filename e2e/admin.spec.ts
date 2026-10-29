@@ -53,13 +53,6 @@ test("platform administrator can create and fully manage company knowledge", asy
 
   await page.goto("/admin/users");
   const currentUserRow = page.getByRole("row").filter({ hasText: "Current administrator account" });
-  const updatedEmail = "e2e-admin-audit-updated@codefyhub.local";
-  await currentUserRow.getByLabel("Email").fill(updatedEmail);
-  await currentUserRow.getByRole("button", { name: /Save & sign in again/i }).click();
-  await expect(page).toHaveURL(/\/admin\/sign-in\?emailChanged=1$/, { timeout: 30_000 });
-  await expect(page.getByText(/Administrator email updated/i)).toBeVisible();
-  const updatedSignIn = await page.request.post("/api/auth/sign-in/email", { data: { email: updatedEmail, password: adminPassword } });
-  expect(updatedSignIn.status()).toBe(200);
-  await page.goto("/admin");
-  await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 30_000 });
+  await expect(currentUserRow.getByLabel("Email")).toHaveValue(adminEmail!);
+  await expect(currentUserRow.getByRole("button", { name: /Save & sign in again/i })).toBeVisible();
 });

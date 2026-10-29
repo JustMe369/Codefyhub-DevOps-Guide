@@ -24,7 +24,7 @@ export async function searchKnowledge(query: string, filters: SearchFilters = {}
       FROM "Article" a
       JOIN "Section" s ON s.id = a."sectionId"
       JOIN "Company" c ON c.id = a."companyId"
-      WHERE a.status = 'PUBLISHED' AND a.visibility = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND s.status = 'PUBLISHED' AND c."isPublic" = true AND c.status = 'ACTIVE'
+      WHERE a.status = 'PUBLISHED' AND a."reviewStatus" = 'APPROVED' AND a.visibility = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND (a."expiresAt" IS NULL OR a."expiresAt" > CURRENT_TIMESTAMP) AND s.status = 'PUBLISHED' AND c."isPublic" = true AND c.status = 'ACTIVE'
     )
     SELECT * FROM (
       SELECT a.id, a.title, a.description, a.slug AS "articleSlug", a."sectionSlug", a."sectionTitle",

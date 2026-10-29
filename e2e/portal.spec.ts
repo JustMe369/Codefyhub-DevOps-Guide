@@ -10,6 +10,8 @@ test("active company member can sign in and read the private knowledge bank", as
   await page.getByLabel("Password").pressSequentially(memberPassword!);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/portal(?:\/)?$/);
+  await expect(page.locator(".portal-header")).toBeVisible();
+  await expect(page.locator(".site-header")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Everything your company knows/i })).toBeVisible();
   await expect(page.getByText("Approved and current documents only")).toBeVisible();
   await page.goto("/portal/knowledge?type=FAQ");

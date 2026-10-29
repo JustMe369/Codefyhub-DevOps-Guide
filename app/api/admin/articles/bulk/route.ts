@@ -10,7 +10,7 @@ const bulkSchema = z.object({
   action: z.enum(["archive", "delete", "tag"]),
   articleIds: z.array(z.string().cuid()).min(1).max(100),
   tagIds: z.array(z.string().cuid()).max(100).optional(),
-  confirmTitle: z.string().optional(),
+  confirmPhrase: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const parsed = bulkSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid bulk payload.", issues: parsed.error.flatten() }, { status: 400 });
 
-    const { action, articleIds, tagIds, confirmTitle } = parsed.data;
+    const { action, articleIds, tagIds, confirmPhrase } = parsed.data;
 
     // Verify all articles belong to this company
     const articles = await prisma.article.findMany({
@@ -45,11 +45,8 @@ export async function POST(request: Request) {
       }
     }
 
-    if (action === "delete" && confirmTitle) {
-      const matched = articles.some((a) => a.title === confirmTitle);
-      if (!matched) {
-        return NextResponse.json({ error: "The confirmation title does not match any selected article." }, { status: 400 });
-      }
+    if (action === "delete" && confirmPhrase !== `DELETE ${articles.length} ARTICLES`) {
+      return NextResponse.json({ error: `Permanent deletion requires confirmPhrase: DELETE ${articles.length} ARTICLES.` }, { status: 400 });
     }
 
     await prisma.$transaction(async (tx) => {

@@ -172,6 +172,7 @@ export async function publishArticle(id: string, expectedUpdatedAt: Date, actor:
     if (current.validationStatus === "DRAFT") throw new ArticleConflictError("Source review is required before publication.");
     if (current.articleSources.length === 0) throw new ArticleConflictError("At least one source is required before publication.");
     if (current.reviewStatus !== "APPROVED") throw new ArticleConflictError("An approved knowledge review is required before publication.");
+    if (current.visibility === "DRAFT") throw new ArticleConflictError("Choose a reader visibility before publication. Draft visibility hides this article from readers.");
 
     const article = await tx.article.update({
       where: { id },

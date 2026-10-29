@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ArrowUpRight, BookOpenCheck, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type QuickResult = { id: string; title: string; articleSlug: string; sectionSlug: string; sectionTitle: string; kind: "article" | "glossary"; contentType: string };
 
@@ -25,6 +25,7 @@ function getServerThemeSnapshot(): "dark" | "light" {
 }
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
@@ -95,6 +96,7 @@ export function SiteHeader() {
     window.dispatchEvent(new Event(themeEvent));
   }
   function closeMenu() { setMenuOpen(false); }
+  if (pathname === "/portal" || pathname?.startsWith("/portal/knowledge")) return null;
   return (
     <header className="site-header">
       <div className="shell header-inner">
