@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18.2-alpine
+    image: pgvector/pgvector:0.8.7-pg18-bookworm
     container_name: devops-guide-postgres
     restart: unless-stopped
     environment:

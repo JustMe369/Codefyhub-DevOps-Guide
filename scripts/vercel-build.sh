@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${APPLY_DATABASE_MIGRATIONS:-}" == "1" ]]; then
+# Production code must never be released ahead of its additive schema changes.
+# Preview builds migrate only when explicitly configured with an isolated DB.
+if [[ "${VERCEL_ENV:-}" == "production" || "${APPLY_DATABASE_MIGRATIONS:-}" == "1" ]]; then
   npm run deploy:db
 fi
 
