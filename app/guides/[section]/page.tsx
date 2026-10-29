@@ -18,7 +18,7 @@ export default async function SectionPage({ params }: Props) {
   const { section: slug } = await params;
   const section = await prisma.section.findFirst({
     where: { slug, status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } },
-    include: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC" }, orderBy: { order: "asc" } } }
+    include: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" } }, orderBy: { order: "asc" } } }
   });
   if (!section) notFound();
   const isStorageSlice = section.slug === "storage-raid";

@@ -13,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true } 
     });
     const articles = await prisma.article.findMany({ 
-      where: { status: "PUBLISHED", visibility: "PUBLIC", company: { isPublic: true, status: "ACTIVE" }, section: { status: "PUBLISHED" } }, 
+      where: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, company: { isPublic: true, status: "ACTIVE" }, section: { status: "PUBLISHED" } },
       include: { section: true } 
     });
     
