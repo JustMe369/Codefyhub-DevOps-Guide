@@ -66,6 +66,7 @@ export async function searchCompanyKnowledge(query: string, companyId: string, i
         AND a."reviewStatus" = 'APPROVED'
         AND s.status = 'PUBLISHED'
         AND (a."expiresAt" IS NULL OR a."expiresAt" > CURRENT_TIMESTAMP)
+        AND a.visibility <> 'DRAFT'
         AND (${includeRestricted} OR a.visibility <> 'RESTRICTED')
     )
     SELECT * FROM (

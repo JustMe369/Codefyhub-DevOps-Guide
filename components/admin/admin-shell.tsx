@@ -22,6 +22,12 @@ const navigation = [
 
 type CompanyOption = { id: string; name: string; slug: string; isPublic: boolean };
 
+function isAdminNavActive(pathname: string, href: string) {
+  if (href === "/admin") return pathname === "/admin";
+  if (href === "/admin/articles") return pathname === "/admin/articles" || (pathname.startsWith("/admin/articles/") && !pathname.startsWith("/admin/articles/new"));
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function AdminShell({ identity, companies, children }: { identity: AdminIdentity; companies: CompanyOption[]; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -51,7 +57,7 @@ export function AdminShell({ identity, companies, children }: { identity: AdminI
         </label>
         <nav aria-label="Administration">
           {visibleNavigation.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className={pathname === href || (href !== "/admin" && pathname.startsWith(href)) ? "active" : ""}>
+            <Link key={href} href={href} className={isAdminNavActive(pathname, href) ? "active" : ""}>
               <Icon size={17} /> {label}
             </Link>
           ))}

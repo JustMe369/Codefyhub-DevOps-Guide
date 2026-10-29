@@ -1203,6 +1203,10 @@ html[dir="rtl"] h6 {
 .admin-knowledge-create label { display: grid; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 800; }
 .admin-knowledge-create input, .admin-knowledge-create textarea, .admin-knowledge-create select { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--bg); font: inherit; }
 .admin-create-wide { grid-column: 1 / -1; }
+.admin-visibility-choices { grid-column: 1 / -1; display: grid; gap: 10px; margin: 0; padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
+.admin-visibility-choices legend { padding: 0 6px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.admin-visibility-choices > label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; color: var(--text); font-size: 14px; font-weight: 500; }
+.admin-visibility-choices small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.4; }
 .admin-knowledge-create button { justify-self: start; }
 .admin-create-empty { display: flex; align-items: flex-start; gap: 13px; max-width: 760px; padding: 20px; }
 .admin-create-empty h2 { margin: 0 0 5px; }

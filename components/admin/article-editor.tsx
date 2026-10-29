@@ -15,7 +15,7 @@ type EditableArticle = {
   contentType: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH" | "FAQ" | "WORKFLOW" | "ISSUE_SOLUTION" | "POLICY";
   validationStatus: "DRAFT" | "SOURCE_REVIEWED" | "LAB_TESTED";
   reviewStatus: "DRAFT" | "IN_REVIEW" | "CHANGES_REQUESTED" | "APPROVED";
-  visibility: "PUBLIC" | "INTERNAL" | "RESTRICTED";
+  visibility: "PUBLIC" | "INTERNAL" | "RESTRICTED" | "DRAFT";
   applicablePlatforms: string[];
   applicableVersions: string[];
   prerequisites: string[];
@@ -194,7 +194,7 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         <label>Content type<select value={article.contentType} onChange={(event) => setField("contentType", event.target.value as EditableArticle["contentType"])}>{["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "ISSUE_SOLUTION", "POLICY"].map((value) => <option key={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
         <label>Difficulty<select value={article.difficulty} onChange={(event) => setField("difficulty", event.target.value as EditableArticle["difficulty"])}>{["FOUNDATION", "INTERMEDIATE", "ADVANCED"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Validation<select value={article.validationStatus} onChange={(event) => setField("validationStatus", event.target.value as EditableArticle["validationStatus"])}>{["DRAFT", "SOURCE_REVIEWED", "LAB_TESTED"].map((value) => <option key={value}>{value}</option>)}</select></label>
-        <label>Visibility<select value={article.visibility} onChange={(event) => setField("visibility", event.target.value as EditableArticle["visibility"])}>{["PUBLIC", "INTERNAL", "RESTRICTED"].map((value) => <option key={value}>{value}</option>)}</select></label>
+        <label>Visibility<select value={article.visibility} onChange={(event) => setField("visibility", event.target.value as EditableArticle["visibility"])}><option value="INTERNAL">Selected workspace</option><option value="PUBLIC">Public</option><option value="DRAFT">Draft</option><option value="RESTRICTED">Restricted</option></select></label>
         <label>Review due<input type="date" value={article.reviewDueAt?.slice(0, 10) ?? ""} onChange={(event) => setField("reviewDueAt", event.target.value ? new Date(`${event.target.value}T00:00:00.000Z`).toISOString() : null)} /></label>
         <label>Expires / re-review<input type="date" value={article.expiresAt?.slice(0, 10) ?? ""} onChange={(event) => setField("expiresAt", event.target.value ? new Date(`${event.target.value}T00:00:00.000Z`).toISOString() : null)} /></label>
         <label>Reading minutes<input type="number" min={1} max={240} value={article.readingMinutes} onChange={(event) => setField("readingMinutes", Number(event.target.value))} /></label>

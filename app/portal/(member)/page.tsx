@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ArrowRight, CircleHelp, LibraryBig, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowRight, CircleHelp, LibraryBig, ShieldCheck, Wrench, Workflow } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { contentTypeLabel, getPortalIdentity, portalArticleWhere } from "@/lib/portal/knowledge";
 
 const categoryCards = [
+  { type: "WORKFLOW", label: "Workflows", description: "Approved operating workflows and procedures for your teams.", icon: Workflow },
   { type: "FAQ", label: "Questions & answers", description: "Trusted answers to the questions your teams ask repeatedly.", icon: CircleHelp },
   { type: "ISSUE_SOLUTION", label: "Issue solutions", description: "Proven fixes and lessons from previously resolved incidents.", icon: Wrench },
   { type: "POLICY", label: "Policies", description: "Approved standards, responsibilities, and guardrails.", icon: ShieldCheck },

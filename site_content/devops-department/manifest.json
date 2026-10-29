@@ -11,7 +11,13 @@
       "visibility": "INTERNAL",
       "order": 1,
       "bodyFile": "access-ubuntu-dev-environment-remotely.md",
-      "tags": ["devops", "workflow", "remote-access", "ubuntu", "rdp"],
+      "tags": [
+        "devops",
+        "workflow",
+        "remote-access",
+        "ubuntu",
+        "rdp"
+      ],
       "prerequisites": [
         "An active Codefyhub company account",
         "Authorization from the Codefyhub DevOps Department",
@@ -19,14 +25,118 @@
         "The remote password retrieved from the approved Codefyhub secret channel"
       ],
       "relatedGuides": [
-        "remote-access/beginner-remote-access",
-        "remote-access/connect-everywhere",
-        "secure-networking/wireguard"
+        "devops-department/wireguard-vpn-deployment-workflow"
       ],
-      "applicablePlatforms": ["Windows", "macOS", "iOS", "iPadOS", "Android", "Ubuntu Desktop 24.04 LTS"],
-      "applicableVersions": ["Ubuntu Desktop 24.04 LTS", "RDP clients current at review date"],
-      "sourceTitles": ["Ubuntu Desktop remote desktop documentation", "Windows App remote PC documentation"],
+      "applicablePlatforms": [
+        "Windows",
+        "macOS",
+        "iOS",
+        "iPadOS",
+        "Android",
+        "Ubuntu Desktop 24.04 LTS"
+      ],
+      "applicableVersions": [
+        "Ubuntu Desktop 24.04 LTS",
+        "RDP clients current at review date"
+      ],
+      "sourceTitles": [
+        "Ubuntu Desktop remote desktop documentation",
+        "Windows App remote PC documentation"
+      ],
       "reviewedAt": "2026-10-28",
+      "testedAt": null,
+      "testEnvironment": null
+    },
+    {
+      "section": "devops-department",
+      "slug": "access-ubuntu-dev-environment-from-anywhere",
+      "title": "Access your Ubuntu dev environment from anywhere",
+      "description": "Connect to your Codefyhub Ubuntu Desktop development environment from Windows, macOS, iOS, iPadOS, or Android using RDP — same credentials on every device.",
+      "difficulty": "FOUNDATION",
+      "contentType": "WORKFLOW",
+      "validationStatus": "SOURCE_REVIEWED",
+      "visibility": "INTERNAL",
+      "order": 2,
+      "bodyFile": "access-ubuntu-dev-environment-from-anywhere.md",
+      "tags": [
+        "devops",
+        "workflow",
+        "remote-access",
+        "ubuntu",
+        "rdp"
+      ],
+      "prerequisites": [
+        "An active Codefyhub company account",
+        "Authorization from the Codefyhub DevOps Department",
+        "A connection to the Codefyhub office network or approved company VPN",
+        "The remote password retrieved from the approved Codefyhub secret channel"
+      ],
+      "relatedGuides": [
+        "devops-department/wireguard-vpn-deployment-workflow"
+      ],
+      "applicablePlatforms": [
+        "Windows",
+        "macOS",
+        "iOS",
+        "iPadOS",
+        "Android",
+        "Ubuntu Desktop 24.04 LTS"
+      ],
+      "applicableVersions": [
+        "Ubuntu Desktop 24.04 LTS",
+        "RDP clients current at review date"
+      ],
+      "sourceTitles": [
+        "Ubuntu Desktop remote desktop documentation",
+        "Windows App remote PC documentation"
+      ],
+      "reviewedAt": "2026-10-28",
+      "testedAt": null,
+      "testEnvironment": null
+    },
+    {
+      "section": "devops-department",
+      "slug": "wireguard-vpn-deployment-workflow",
+      "title": "Deploy the WireGuard (AmneziaWG) VPN for Codefyhub employees",
+      "description": "Standard operating procedure for deploying the self-hosted AmneziaWG VPN: admin workflow (wg-easy), user workflow (device-side import and connect), and security best practices.",
+      "difficulty": "INTERMEDIATE",
+      "contentType": "WORKFLOW",
+      "validationStatus": "SOURCE_REVIEWED",
+      "visibility": "INTERNAL",
+      "order": 3,
+      "bodyFile": "wireguard-vpn-deployment-workflow.md",
+      "tags": [
+        "devops",
+        "workflow",
+        "vpn",
+        "wireguard",
+        "amnezia",
+        "secure-networking"
+      ],
+      "prerequisites": [
+        "A Codefyhub company account",
+        "Admin access to the wg-easy dashboard",
+        "A server with Docker and Docker Compose available",
+        "DNS or a hostname pointing at the WireGuard server"
+      ],
+      "relatedGuides": [
+        "devops-department/access-ubuntu-dev-environment-from-anywhere",
+        "devops-department/access-ubuntu-dev-environment-remotely"
+      ],
+      "applicablePlatforms": [
+        "Android",
+        "iOS",
+        "macOS",
+        "Windows"
+      ],
+      "applicableVersions": [
+        "AmneziaWG current at review date"
+      ],
+      "sourceTitles": [
+        "AmneziaWG documentation",
+        "wg-easy documentation"
+      ],
+      "reviewedAt": "2026-10-29",
       "testedAt": null,
       "testEnvironment": null
     }

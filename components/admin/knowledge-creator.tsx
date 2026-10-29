@@ -5,18 +5,21 @@ import { FilePlus2, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type SectionOption = { id: string; title: string };
-type KnowledgeType = "FAQ" | "ISSUE_SOLUTION" | "POLICY";
+type KnowledgeType = "WORKFLOW" | "FAQ" | "ISSUE_SOLUTION" | "POLICY";
+type KnowledgeVisibility = "INTERNAL" | "PUBLIC" | "DRAFT";
 
 const typeLabels: Record<KnowledgeType, string> = {
+  WORKFLOW: "Workflow",
   FAQ: "Question & answer",
   ISSUE_SOLUTION: "Issue solution",
   POLICY: "Policy",
 };
 
-export function KnowledgeCreator({ sections, initialType = "FAQ" }: { sections: SectionOption[]; initialType?: KnowledgeType }) {
+export function KnowledgeCreator({ sections, initialType = "FAQ", workspaceName }: { sections: SectionOption[]; initialType?: KnowledgeType; workspaceName: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<KnowledgeVisibility>("INTERNAL");
 
   async function createKnowledge(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +35,7 @@ export function KnowledgeCreator({ sections, initialType = "FAQ" }: { sections: 
           contentType: form.get("contentType"),
           title: form.get("title"),
           description: form.get("description"),
+          visibility,
         }),
       });
       const payload = await response.json() as { article?: { id: string }; error?: string };
@@ -53,12 +57,27 @@ export function KnowledgeCreator({ sections, initialType = "FAQ" }: { sections: 
   }
 
   return <section className="admin-panel admin-knowledge-create">
-    <div className="admin-panel-heading"><div><h2><FilePlus2 size={18} /> Create company knowledge</h2><p>Start a structured draft, then complete its sources, review, and publication evidence.</p></div></div>
+    <div className="admin-panel-heading"><div><h2><FilePlus2 size={18} /> Create company knowledge</h2><p>Choose who can see this item, then start a structured draft with sources, review, and publication evidence.</p></div></div>
     <form onSubmit={createKnowledge}>
       <label>Knowledge type<select name="contentType" defaultValue={initialType}>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label>Section<select name="sectionId" required>{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select></label>
       <label className="admin-create-wide">Title<input name="title" required minLength={4} maxLength={160} placeholder="Example: Access the Ubuntu development environment" /></label>
       <label className="admin-create-wide">Description<textarea name="description" required minLength={20} maxLength={320} rows={3} placeholder="Explain what this knowledge helps employees accomplish." /></label>
+      <fieldset className="admin-visibility-choices">
+        <legend>Visibility</legend>
+        <label>
+          <input type="radio" name="visibility" value="INTERNAL" checked={visibility === "INTERNAL"} onChange={() => setVisibility("INTERNAL")} />
+          <span><strong>Selected workspace</strong><small>Visible to members of {workspaceName} after it is published.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="visibility" value="PUBLIC" checked={visibility === "PUBLIC"} onChange={() => setVisibility("PUBLIC")} />
+          <span><strong>Public</strong><small>Visible on the public guide after it is published.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="visibility" value="DRAFT" checked={visibility === "DRAFT"} onChange={() => setVisibility("DRAFT")} />
+          <span><strong>Draft</strong><small>Hidden from readers until you change visibility in the editor.</small></span>
+        </label>
+      </fieldset>
       {error && <p className="admin-error admin-create-wide" role="alert">{error}</p>}
       <button className="admin-primary-button admin-create-wide" disabled={pending}>{pending ? <LoaderCircle className="admin-spin" size={17} /> : <FilePlus2 size={17} />} Create draft and open editor</button>
     </form>

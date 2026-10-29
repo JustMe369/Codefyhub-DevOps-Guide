@@ -17,6 +17,7 @@ enum ContentVisibility {
   PUBLIC
   INTERNAL
   RESTRICTED
+  DRAFT
 }
 
 enum CompanyStatus {
@@ -43,6 +44,8 @@ enum ContentType {
   CONFIGURATION_RECIPE
   LEARNING_PATH
   FAQ
+  /// Retained while legacy Article rows still use this value.
+  WORKFLOW
   ISSUE_SOLUTION
   POLICY
 }

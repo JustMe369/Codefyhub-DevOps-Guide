@@ -1,11 +1,13 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
+import { readerVisibilityValues } from "@/lib/admin/article-schema";
 import { getAdminIdentity, canAccessRestrictedKnowledge, type AdminIdentity } from "@/lib/admin/authz";
 
-export const portalContentTypes = ["FAQ", "ISSUE_SOLUTION", "POLICY", "HOW_TO", "RUNBOOK", "REFERENCE"] as const;
+export const portalContentTypes = ["WORKFLOW", "FAQ", "ISSUE_SOLUTION", "POLICY", "HOW_TO", "RUNBOOK", "REFERENCE"] as const;
 export type PortalContentType = (typeof portalContentTypes)[number];
 
 export const portalContentTypeLabels: Record<PortalContentType, string> = {
+  WORKFLOW: "Workflows",
   FAQ: "Questions & answers",
   ISSUE_SOLUTION: "Issue solutions",
   POLICY: "Policies",
@@ -29,10 +31,10 @@ export function portalArticleWhere(identity: AdminIdentity, now = new Date()): P
     companyId: identity.companyId,
     status: "PUBLISHED",
     reviewStatus: "APPROVED",
+    visibility: canAccessRestrictedKnowledge(identity) ? { in: [...readerVisibilityValues] } : { in: ["PUBLIC", "INTERNAL"] },
     section: { status: "PUBLISHED" },
     OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
   };
-  if (!canAccessRestrictedKnowledge(identity)) where.visibility = { not: "RESTRICTED" };
   return where;
 }
 

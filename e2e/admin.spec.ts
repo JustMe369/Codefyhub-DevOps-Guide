@@ -16,6 +16,7 @@ test("platform administrator can create and fully manage company knowledge", asy
   const articleTitle = `E2E admin article ${testInfo.project.name}`;
   await page.getByLabel("Title").fill(articleTitle);
   await page.getByLabel("Description").fill("Temporary governed article created to verify the complete administrator control path.");
+  await page.getByRole("radio", { name: /Selected workspace/i }).check();
   await page.getByRole("button", { name: /Create draft and open editor/i }).click();
   await expect(page).toHaveURL(/\/admin\/articles\/[a-z0-9]+$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { name: articleTitle })).toBeVisible();

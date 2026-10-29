@@ -35,6 +35,14 @@ describe("admin article schemas", () => {
     }
   });
 
+  it("accepts selected-workspace, public, and draft visibility", () => {
+    for (const visibility of ["INTERNAL", "PUBLIC", "DRAFT"] as const) {
+      const parsed = createArticleSchema.safeParse({ ...validArticle, visibility });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.visibility).toBe(visibility);
+    }
+  });
+
   it("rejects unsafe slugs and empty change summaries", () => {
     const result = createArticleSchema.safeParse({ ...validArticle, slug: "Unsafe Slug", changeSummary: "" });
     expect(result.success).toBe(false);

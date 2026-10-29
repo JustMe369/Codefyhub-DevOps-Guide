@@ -3,6 +3,10 @@ import { z } from "zod";
 const slug = z.string().trim().min(2).max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const stringList = z.array(z.string().trim().min(1).max(160)).max(30);
 
+export const articleVisibilityValues = ["PUBLIC", "INTERNAL", "RESTRICTED", "DRAFT"] as const;
+export const createKnowledgeVisibilityValues = ["INTERNAL", "PUBLIC", "DRAFT"] as const;
+export const readerVisibilityValues = ["PUBLIC", "INTERNAL", "RESTRICTED"] as const;
+
 export const articleFieldsSchema = z.object({
   sectionId: z.string().cuid(),
   slug,
@@ -10,9 +14,9 @@ export const articleFieldsSchema = z.object({
   description: z.string().trim().min(20).max(320),
   body: z.string().trim().min(80).max(500_000),
   difficulty: z.enum(["FOUNDATION", "INTERMEDIATE", "ADVANCED"]),
-  contentType: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "ISSUE_SOLUTION", "POLICY"]),
+  contentType: z.enum(["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"]),
   validationStatus: z.enum(["DRAFT", "SOURCE_REVIEWED", "LAB_TESTED"]),
-  visibility: z.enum(["PUBLIC", "INTERNAL", "RESTRICTED"]),
+  visibility: z.enum(articleVisibilityValues),
   applicablePlatforms: stringList,
   applicableVersions: stringList,
   prerequisites: stringList,

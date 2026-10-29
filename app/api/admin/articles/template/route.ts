@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createArticle } from "@/lib/admin/articles";
+import { createKnowledgeVisibilityValues } from "@/lib/admin/article-schema";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
 
@@ -10,6 +11,7 @@ const templateSchema = z.object({
   contentType: z.enum(["FAQ", "ISSUE_SOLUTION", "POLICY"]),
   title: z.string().trim().min(4).max(160).optional(),
   description: z.string().trim().min(20).max(320).optional(),
+  visibility: z.enum(createKnowledgeVisibilityValues).default("INTERNAL"),
 });
 
 const bodies = {
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
       difficulty: "FOUNDATION",
       contentType: parsed.data.contentType,
       validationStatus: "DRAFT",
-      visibility: "INTERNAL",
+      visibility: parsed.data.visibility,
       applicablePlatforms: [],
       applicableVersions: [],
       prerequisites: [],
