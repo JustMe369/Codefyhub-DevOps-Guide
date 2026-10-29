@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...sections.map((section) => ({ url: `${base}/guides/${section.slug}`, lastModified: section.updatedAt })),
       ...articles.map((a) => ({ url: `${base}/guides/${a.section.slug}/${a.slug}`, lastModified: a.updatedAt }))
     ];
-  } catch (error) {
+  } catch {
     // Fallback for build time when DB is not available
     return [
       { url: base },

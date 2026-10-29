@@ -7,7 +7,8 @@ export const additionalSections = [
   { slug: "github", title: "GitHub engineering", summary: "Govern source, secure CI/CD, and make software supply chains auditable.", icon: "GitBranch", order: 9 },
   { slug: "supabase", title: "Supabase platform", summary: "Run Postgres, Auth, Storage, Realtime, and Edge Functions with database-first security.", icon: "Database", order: 10 },
   { slug: "vercel", title: "Vercel delivery", summary: "Design previews, releases, compute, security, and observability as one delivery system.", icon: "Cloud", order: 11 },
-  { slug: "platform-engineering", title: "Platform engineering", summary: "Connect infrastructure as code, Kubernetes, secrets, observability, and SRE practices.", icon: "Workflow", order: 12 }
+  { slug: "platform-engineering", title: "Platform engineering", summary: "Connect infrastructure as code, Kubernetes, secrets, observability, and SRE practices.", icon: "Workflow", order: 12 },
+  { slug: "devops-department", title: "DevOps Department", summary: "Approved Codefyhub operating workflows for development environments, access, delivery, and support.", icon: "Workflow", order: 13 }
 ];
 
 export const additionalArticles = [

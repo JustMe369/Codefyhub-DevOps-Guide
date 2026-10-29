@@ -5,11 +5,12 @@ test("search, lesson navigation, and readiness export are available", async ({ p
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Build infrastructure/i })).toBeVisible();
   const globalSearch = page.getByLabel("Search the guide");
-  await globalSearch.fill("cloud-init");
+  await globalSearch.pressSequentially("cloud-init");
   await globalSearch.press("Enter");
   await expect(page).toHaveURL(/\/search\?q=cloud-init$/);
   await expect(page.getByRole("heading", { name: /Create an Ubuntu Cloud-Init template/i })).toBeVisible();
   await page.getByRole("link", { name: /Create an Ubuntu Cloud-Init template/i }).click();
+  await expect(page).toHaveURL(/\/guides\/proxmox\/vm-cloud-init$/, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Copy code" }).first()).toBeVisible();
   await page.goto("/checklist");
   await expect(page.getByRole("button", { name: "Print / export PDF" })).toBeVisible();

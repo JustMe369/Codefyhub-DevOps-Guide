@@ -5,7 +5,12 @@ import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
 
 export const runtime = "nodejs";
-const templateSchema = z.object({ sectionId: z.string().cuid(), contentType: z.enum(["FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"]) });
+const templateSchema = z.object({
+  sectionId: z.string().cuid(),
+  contentType: z.enum(["FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"]),
+  title: z.string().trim().min(4).max(160).optional(),
+  description: z.string().trim().min(20).max(320).optional(),
+});
 
 const bodies = {
   FAQ: "## Question\n\nWrite the exact question employees ask.\n\n## Answer\n\nProvide the short, verified answer first.\n\n## Details\n\nAdd conditions, exceptions, ownership, and links to authoritative sources.",
@@ -20,15 +25,18 @@ export async function POST(request: Request) {
     const parsed = templateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid template request." }, { status: 400 });
     const label = parsed.data.contentType.toLowerCase().replaceAll("_", "-");
+    const title = parsed.data.title ?? `New ${parsed.data.contentType.toLowerCase().replaceAll("_", " ")}`;
+    const titleSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || label;
     const article = await createArticle({
       sectionId: parsed.data.sectionId,
-      slug: `${label}-${Date.now().toString(36)}`,
-      title: `New ${parsed.data.contentType.toLowerCase().replaceAll("_", " ")}`,
-      description: "Complete this draft with verified company knowledge, accountable ownership, and supporting evidence.",
+      slug: `${titleSlug}-${Date.now().toString(36)}`,
+      title,
+      description: parsed.data.description ?? "Complete this draft with verified company knowledge, accountable ownership, and supporting evidence.",
       body: bodies[parsed.data.contentType],
       difficulty: "FOUNDATION",
       contentType: parsed.data.contentType,
       validationStatus: "DRAFT",
+      visibility: "INTERNAL",
       applicablePlatforms: [],
       applicableVersions: [],
       prerequisites: [],
@@ -40,6 +48,8 @@ export async function POST(request: Request) {
       testedVersions: "Not yet validated",
       testedAt: null,
       testEnvironment: null,
+      reviewDueAt: null,
+      expiresAt: null,
       changeSummary: `Created from ${parsed.data.contentType} knowledge template`,
     }, actor);
     return NextResponse.json({ article }, { status: 201 });

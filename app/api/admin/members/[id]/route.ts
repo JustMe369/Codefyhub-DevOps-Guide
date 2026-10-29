@@ -43,3 +43,25 @@ export async function PATCH(request: Request, context: Context) {
     return adminErrorResponse(error);
   }
 }
+
+export async function DELETE(request: Request, context: Context) {
+  try {
+    const actor = await requireAdminIdentity(request.headers, "members.manage");
+    const { id } = await context.params;
+    const membership = await prisma.membership.findFirst({ where: { id, companyId: actor.companyId }, include: { role: true, user: true } });
+    if (!membership) return NextResponse.json({ error: "Membership not found." }, { status: 404 });
+    if (membership.userId === actor.id) return NextResponse.json({ error: "You cannot remove your own company access." }, { status: 409 });
+    if (membership.role.slug === "company-owner") {
+      const otherOwners = await prisma.membership.count({ where: { companyId: actor.companyId, id: { not: id }, status: "ACTIVE", role: { slug: "company-owner" } } });
+      if (otherOwners === 0) return NextResponse.json({ error: "The final active company owner cannot be removed." }, { status: 409 });
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.delete", entityType: "Membership", entityId: id, summary: `Removed ${membership.user.email} from the company`, metadata: { role: membership.role.slug } } });
+      await tx.membership.delete({ where: { id } });
+      await tx.session.deleteMany({ where: { userId: membership.userId } });
+    });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return adminErrorResponse(error);
+  }
+}

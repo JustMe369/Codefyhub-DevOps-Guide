@@ -26,7 +26,13 @@ const validArticle = {
 
 describe("admin article schemas", () => {
   it("accepts a bounded reviewed draft", () => {
-    expect(createArticleSchema.safeParse(validArticle).success).toBe(true);
+    const parsed = createArticleSchema.safeParse(validArticle);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.visibility).toBe("INTERNAL");
+      expect(parsed.data.reviewDueAt).toBeNull();
+      expect(parsed.data.expiresAt).toBeNull();
+    }
   });
 
   it("rejects unsafe slugs and empty change summaries", () => {

@@ -34,6 +34,7 @@ jobs:
       - run: npm run db:generate
       - run: npm run db:deploy
       - run: npm run db:seed
+      - run: npm run tenant:check
       - run: npm run content:check
       - run: npm run content:internal-links
       - run: npm run search:check
@@ -65,10 +66,10 @@ jobs:
         run: npm run db:generate
       - name: Build the immutable deployment artifact
         run: npm run build
+      - name: Apply backward-compatible production database migrations
+        run: npm run deploy:db
       - name: Deploy the prebuilt artifact to Vercel
         run: npx --yes vercel@65.4.0 deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-      - name: Apply production database migrations
-        run: npm run deploy:db
       - name: Publish source-controlled content
         run: npm run deploy:content
       - name: Post-deployment smoke checks

@@ -75,7 +75,7 @@ PostgreSQL 18
   └─ Full-text search
 ```
 
-For the full system design, file-by-file map, data flows, security model, recovery plan, ownership, and roadmap, read [PROJECT_PLAN_AND_INFRASTRUCTURE.md](PROJECT_PLAN_AND_INFRASTRUCTURE.md).
+For the full system design, file-by-file map, data flows, security model, recovery plan, ownership, and roadmap, read [PROJECT_PLAN_AND_INFRASTRUCTURE.md](PROJECT_PLAN_AND_INFRASTRUCTURE.md). The multi-company product direction and phased delivery plan are in [docs/KNOWLEDGE_BANK_UPGRADE_ROADMAP.md](docs/KNOWLEDGE_BANK_UPGRADE_ROADMAP.md).
 
 ## Technology stack
 

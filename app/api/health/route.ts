@@ -6,9 +6,7 @@ export async function GET() {
     await prisma.$queryRaw`SELECT 1`;
     const controlPlaneConfigured = Boolean(
       process.env.BETTER_AUTH_SECRET &&
-      process.env.GITHUB_CLIENT_ID &&
-      process.env.GITHUB_CLIENT_SECRET &&
-      process.env.ADMIN_EMAILS,
+      process.env.BETTER_AUTH_URL,
     );
     return NextResponse.json({
       status: "ok",

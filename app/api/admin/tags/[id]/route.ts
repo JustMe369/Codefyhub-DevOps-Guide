@@ -27,3 +27,17 @@ export async function PATCH(request: Request, context: Context) {
     return adminErrorResponse(error);
   }
 }
+
+export async function DELETE(request: Request, context: Context) {
+  try {
+    const actor = await requireAdminIdentity(request.headers, "structure.manage");
+    const { id } = await context.params;
+    const tag = await prisma.tag.findFirst({ where: { id, companyId: actor.companyId }, include: { _count: { select: { articleTags: true } } } });
+    if (!tag) return NextResponse.json({ error: "Tag not found." }, { status: 404 });
+    await prisma.$transaction(async (tx) => {
+      await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "tag.delete", entityType: "Tag", entityId: id, summary: `Deleted tag ${tag.name}`, metadata: { detachedArticles: tag._count.articleTags } } });
+      await tx.tag.delete({ where: { id } });
+    });
+    return NextResponse.json({ ok: true });
+  } catch (error) { return adminErrorResponse(error); }
+}

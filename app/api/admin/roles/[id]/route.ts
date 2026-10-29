@@ -22,7 +22,7 @@ export async function PATCH(request: Request, context: Context) {
     const { id } = await context.params;
     const current = await prisma.companyRole.findFirst({ where: { id, companyId: actor.companyId } });
     if (!current) return NextResponse.json({ error: "Role not found." }, { status: 404 });
-    if (current.isSystem) return NextResponse.json({ error: "System roles are protected." }, { status: 409 });
+    if (current.isSystem && !actor.isPlatformAdmin) return NextResponse.json({ error: "Only a platform administrator can modify system roles." }, { status: 409 });
     if (!actor.isPlatformAdmin && parsed.data.permissions.some((permission) => !actor.permissions.includes(permission))) {
       return NextResponse.json({ error: "A role cannot grant permissions you do not possess." }, { status: 403 });
     }

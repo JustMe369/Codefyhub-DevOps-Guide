@@ -15,7 +15,10 @@ const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
 const verified = new Date(`${verificationValue}T00:00:00.000Z`);
 const reverifyExisting = process.env.CONTENT_REVERIFY === "true";
 const verifiedBy = process.env.CONTENT_VERIFIED_BY ?? "Codefyhub Editorial Team";
-const sourceContent = loadSourceArticles(`${repositoryRoot}/site_content/storage-raid/manifest.json`);
+const sourceContent = [
+  ...loadSourceArticles(`${repositoryRoot}/site_content/storage-raid/manifest.json`),
+  ...loadSourceArticles(`${repositoryRoot}/site_content/devops-department/manifest.json`),
+];
 if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
 const testedVersionsBySection: Record<string, string> = {
@@ -31,6 +34,7 @@ const testedVersionsBySection: Record<string, string> = {
   supabase: "Current hosted Supabase platform and CLI workflow",
   vercel: "Current Vercel platform and Next.js 16 concepts",
   "platform-engineering": "Current Kubernetes, OpenTofu, Ansible, OCI, and OpenTelemetry guidance"
+  ,"devops-department": "Ubuntu Desktop 24.04 LTS and current Microsoft Remote Desktop clients"
 };
 
 const sections = [
@@ -937,6 +941,8 @@ const articles = [
 const sourceRows = [
   { title: "Proxmox VE Administration Guide", organization: "Proxmox Server Solutions", url: "https://pve.proxmox.com/pve-docs/pve-admin-guide.html", sourceType: "official documentation", sections: ["start-here", "storage-raid", "proxmox", "production"] },
   { title: "Ubuntu Server documentation", organization: "Canonical", url: "https://documentation.ubuntu.com/server/", sourceType: "official documentation", sections: ["start-here", "ubuntu", "remote-access", "production"] },
+  { title: "Ubuntu Desktop remote desktop documentation", organization: "Canonical", url: "https://documentation.ubuntu.com/desktop/en/24.04/how-to/share-your-desktop-remotely/", sourceType: "official documentation", sections: ["devops-department", "remote-access"] },
+  { title: "Windows App remote PC documentation", organization: "Microsoft", url: "https://learn.microsoft.com/en-us/windows-app/get-started-connect-devices-desktops-apps?pivots=remote-pc", sourceType: "official documentation", sections: ["devops-department", "remote-access"] },
   { title: "WireGuard Quick Start", organization: "WireGuard", url: "https://www.wireguard.com/quickstart/", sourceType: "official documentation", sections: ["secure-networking", "remote-access"] },
   { title: "Amnezia documentation", organization: "Amnezia", url: "https://docs.amnezia.org/", sourceType: "official documentation", sections: ["secure-networking", "remote-access"] },
   { title: "Tailscale documentation", organization: "Tailscale", url: "https://tailscale.com/kb", sourceType: "official documentation", sections: ["remote-access"] },
@@ -1104,6 +1110,9 @@ async function main() {
       difficulty: article.difficulty,
       contentType: article.contentType ?? ContentType.CONCEPT,
       validationStatus: article.validationStatus ?? ValidationStatus.DRAFT,
+      reviewStatus: "APPROVED" as const,
+      reviewedAt,
+      reviewNote: "Approved source-controlled editorial release",
       applicablePlatforms: article.applicablePlatforms ?? [],
       applicableVersions: article.applicableVersions ?? [],
       prerequisites: article.prerequisites ?? [],
@@ -1113,7 +1122,7 @@ async function main() {
       readingMinutes: Math.max(2, Math.ceil(article.body.trim().split(/\s+/).length / 180)),
       order: article.order,
       status: "PUBLISHED" as const,
-      visibility: "PUBLIC" as const,
+      visibility: ("visibility" in article ? article.visibility : "PUBLIC") as "PUBLIC" | "INTERNAL",
       publishedAt: verified,
       lastVerifiedAt: reviewedAt
       ,verifiedBy
@@ -1124,11 +1133,36 @@ async function main() {
           : "Editorial draft; technical validation is pending"
       ,testedVersions: article.applicableVersions.length ? article.applicableVersions.join("; ") : testedVersionsBySection[article.section]
     };
+    const revisionSnapshot = {
+      sectionId,
+      slug: article.slug,
+      title: article.title,
+      description: article.description,
+      difficulty: article.difficulty,
+      contentType: data.contentType,
+      validationStatus: data.validationStatus,
+      reviewStatus: data.reviewStatus,
+      visibility: data.visibility,
+      applicablePlatforms: data.applicablePlatforms,
+      applicableVersions: data.applicableVersions,
+      prerequisites: data.prerequisites,
+      relatedGuides: data.relatedGuides,
+      testedAt: data.testedAt?.toISOString() ?? null,
+      testEnvironment: data.testEnvironment,
+      readingMinutes: data.readingMinutes,
+      status: data.status,
+      publishedAt: data.publishedAt.toISOString(),
+      lastVerifiedAt: data.lastVerifiedAt.toISOString(),
+      verifiedBy,
+      verificationMethod: data.verificationMethod,
+      testedVersions: data.testedVersions,
+      sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [],
+    };
     const existing = await db.article.findUnique({ where: { sectionId_slug: { sectionId, slug: article.slug } } });
     const row = existing
       ? await (async () => {
           const contentChanged = existing.body !== article.body || existing.title !== article.title || existing.description !== article.description;
-          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.contentType !== data.contentType || existing.validationStatus !== data.validationStatus || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || JSON.stringify(existing.applicablePlatforms) !== JSON.stringify(data.applicablePlatforms) || JSON.stringify(existing.applicableVersions) !== JSON.stringify(data.applicableVersions) || JSON.stringify(existing.prerequisites) !== JSON.stringify(data.prerequisites) || JSON.stringify(existing.relatedGuides) !== JSON.stringify(data.relatedGuides) || existing.testEnvironment !== data.testEnvironment || existing.testedAt?.valueOf() !== data.testedAt?.valueOf() || (article.reviewedAt ? existing.lastVerifiedAt.valueOf() !== reviewedAt.valueOf() : reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
+          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.contentType !== data.contentType || existing.validationStatus !== data.validationStatus || existing.reviewStatus !== "APPROVED" || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || JSON.stringify(existing.applicablePlatforms) !== JSON.stringify(data.applicablePlatforms) || JSON.stringify(existing.applicableVersions) !== JSON.stringify(data.applicableVersions) || JSON.stringify(existing.prerequisites) !== JSON.stringify(data.prerequisites) || JSON.stringify(existing.relatedGuides) !== JSON.stringify(data.relatedGuides) || existing.testEnvironment !== data.testEnvironment || existing.testedAt?.valueOf() !== data.testedAt?.valueOf() || (article.reviewedAt ? existing.lastVerifiedAt.valueOf() !== reviewedAt.valueOf() : reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
           if (contentChanged) {
             const latest = await db.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
             await db.articleVersion.create({
@@ -1137,7 +1171,7 @@ async function main() {
                 revision: (latest._max.revision ?? 0) + 1,
                 body: article.body,
                 changeSummary: "Seeded editorial update",
-                snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: data.lastVerifiedAt.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] }
+                snapshot: revisionSnapshot
               }
             });
           }
@@ -1146,10 +1180,10 @@ async function main() {
         })()
       : await db.article.create({ data });
     articleMap.set(`${article.section}/${article.slug}`, row.id);
-    if (!existing) await db.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition", snapshot: { title: article.title, description: article.description, difficulty: article.difficulty, readingMinutes: data.readingMinutes, status: "PUBLISHED", lastVerifiedAt: data.lastVerifiedAt.toISOString(), verifiedBy, verificationMethod: data.verificationMethod, testedVersions: data.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
+    if (!existing) await db.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition", snapshot: revisionSnapshot } });
     const latestVersion = await db.articleVersion.findFirst({ where: { articleId: row.id }, orderBy: { revision: "desc" } });
     if (latestVersion && latestVersion.snapshot === null && latestVersion.body === row.body) {
-      await db.articleVersion.update({ where: { id: latestVersion.id }, data: { snapshot: { title: row.title, description: row.description, difficulty: row.difficulty, readingMinutes: row.readingMinutes, status: row.status, lastVerifiedAt: row.lastVerifiedAt.toISOString(), verifiedBy: row.verifiedBy, verificationMethod: row.verificationMethod, testedVersions: row.testedVersions, sourceTitles: articleSourceTitles[`${article.section}/${article.slug}`] ?? [] } } });
+      await db.articleVersion.update({ where: { id: latestVersion.id }, data: { snapshot: revisionSnapshot } });
     }
     await db.articleTag.deleteMany({ where: { articleId: row.id } });
     for (const tagSlug of article.tags ?? []) {

@@ -3,18 +3,32 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Menu, Moon, Search, Sun, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 
 type QuickResult = { id: string; title: string; articleSlug: string; sectionSlug: string; sectionTitle: string; kind: "article" | "glossary"; contentType: string };
 
+const themeEvent = "codefyhub:theme-change";
+
+function subscribeToTheme(callback: () => void) {
+  window.addEventListener(themeEvent, callback);
+  return () => window.removeEventListener(themeEvent, callback);
+}
+
+function getThemeSnapshot(): "dark" | "light" {
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+}
+
+function getServerThemeSnapshot(): "dark" | "light" {
+  return "dark";
+}
+
 export function SiteHeader() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
   const [query, setQuery] = useState("");
-  const [searchReady, setSearchReady] = useState(false);
   const [results, setResults] = useState<QuickResult[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -34,8 +48,7 @@ export function SiteHeader() {
         ? "light"
         : "dark";
     document.documentElement.dataset.theme = preferred;
-    const timer = window.setTimeout(() => { setTheme(preferred); setSearchReady(true); }, 0);
-    return () => window.clearTimeout(timer);
+    window.dispatchEvent(new Event(themeEvent));
   }, []);
   useEffect(() => {
     if (!menuOpen) return;
@@ -77,7 +90,9 @@ export function SiteHeader() {
   }, [query]);
   function toggleTheme() {
     const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-    setTheme(next); localStorage.setItem("devops-guide:theme", next); document.documentElement.dataset.theme = next;
+    localStorage.setItem("devops-guide:theme", next);
+    document.documentElement.dataset.theme = next;
+    window.dispatchEvent(new Event(themeEvent));
   }
   function closeMenu() { setMenuOpen(false); }
   return (
@@ -94,16 +109,12 @@ export function SiteHeader() {
           <Link onClick={closeMenu} href="/exam">Exam</Link>
           <Link onClick={closeMenu} href="/glossary">Glossary</Link>
           <Link onClick={closeMenu} href="/checklist">Readiness</Link>
+          <Link onClick={closeMenu} href="/portal">Company portal</Link>
         </nav>
         <button className="header-icon theme-toggle" type="button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button>
-        <form className="search-form" action="/search" role="search" onSubmit={(event) => {
-          event.preventDefault();
-          const submittedQuery = String(new FormData(event.currentTarget).get("q") ?? "").trim();
-          setSearchOpen(false);
-          router.push(submittedQuery ? `/search?q=${encodeURIComponent(submittedQuery)}` : "/search");
-        }}>
+        <form className="search-form" action="/search" method="get" role="search">
           <Search size={16} aria-hidden="true" />
-          <fieldset disabled={!searchReady} className="search-input-field">
+          <fieldset className="search-input-field">
           <label className="sr-only" htmlFor="global-search">Search the guide</label>
           <input ref={searchRef} id="global-search" className="search-input" name="q" type="search" role="combobox" placeholder="Search the field guide…" value={query} autoComplete="off" aria-autocomplete="list" aria-controls="quick-search-results" aria-expanded={searchOpen} aria-activedescendant={activeResult >= 0 ? `quick-result-${activeResult}` : undefined} onFocus={() => setSearchOpen(true)} onChange={(event) => { const next = event.target.value; setQuery(next); setSearchOpen(true); if (next.trim().length < 2) { setResults([]); setSearchLoading(false); setActiveResult(-1); } }} onKeyDown={(event) => {
             if (event.key === "ArrowDown" && results.length) { event.preventDefault(); setActiveResult((current) => Math.min(current + 1, results.length - 1)); }

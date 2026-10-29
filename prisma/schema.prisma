@@ -54,6 +54,27 @@ enum ValidationStatus {
   LAB_TESTED
 }
 
+enum ReviewStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum KnowledgeRequestStatus {
+  OPEN
+  PLANNED
+  RESOLVED
+  DISMISSED
+}
+
 model Section {
   id        String        @id @default(cuid())
   companyId String        @default("codefyhub-company")
@@ -87,6 +108,12 @@ model Article {
   difficulty          Difficulty                  @default(FOUNDATION)
   contentType         ContentType                 @default(CONCEPT)
   validationStatus    ValidationStatus            @default(DRAFT)
+  reviewStatus        ReviewStatus                @default(DRAFT)
+  reviewDueAt         DateTime?
+  reviewedAt          DateTime?
+  reviewedById        String?
+  reviewNote          String?
+  expiresAt           DateTime?
   applicablePlatforms String[]                    @default([])
   applicableVersions  String[]                    @default([])
   prerequisites       String[]                    @default([])
@@ -108,6 +135,7 @@ model Article {
   articleSources      ArticleSource[]
   articleTags         ArticleTag[]
   glossaryTerms       GlossaryTerm[]
+  resolvedRequests    KnowledgeRequest[]          @relation("ResolvedKnowledgeRequest")
 
   @@unique([sectionId, slug])
   @@unique([sectionId, order])
@@ -197,21 +225,23 @@ model GlossaryTerm {
 }
 
 model Company {
-  id          String         @id @default(cuid())
-  name        String
-  slug        String         @unique
-  status      CompanyStatus  @default(ACTIVE)
-  isPublic    Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  memberships Membership[]
-  roles       CompanyRole[]
-  sections    Section[]
-  articles    Article[]
-  sources     Source[]
-  tags        Tag[]
-  glossary    GlossaryTerm[]
-  auditEvents AuditEvent[]
+  id                String             @id @default(cuid())
+  name              String
+  slug              String             @unique
+  status            CompanyStatus      @default(ACTIVE)
+  isPublic          Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  memberships       Membership[]
+  roles             CompanyRole[]
+  sections          Section[]
+  articles          Article[]
+  sources           Source[]
+  tags              Tag[]
+  glossary          GlossaryTerm[]
+  auditEvents       AuditEvent[]
+  invitations       MemberInvitation[]
+  knowledgeRequests KnowledgeRequest[]
 }
 
 model Membership {
@@ -233,21 +263,63 @@ model Membership {
 }
 
 model CompanyRole {
-  id          String           @id @default(cuid())
+  id          String             @id @default(cuid())
   companyId   String
-  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   slug        String
   description String
-  isSystem    Boolean          @default(false)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  isSystem    Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   memberships Membership[]
   permissions RolePermission[]
+  invitations MemberInvitation[]
 
   @@unique([companyId, slug])
   @@unique([companyId, name])
   @@index([companyId])
+}
+
+model MemberInvitation {
+  id           String           @id @default(cuid())
+  companyId    String
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleId       String
+  role         CompanyRole      @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  email        String
+  name         String
+  tokenHash    String           @unique
+  status       InvitationStatus @default(PENDING)
+  invitedById  String
+  acceptedById String?
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  acceptedAt   DateTime?
+
+  @@index([companyId, status, expiresAt])
+  @@index([email, status])
+}
+
+model KnowledgeRequest {
+  id                String                 @id @default(cuid())
+  companyId         String
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  query             String
+  queryNormalized   String
+  context           String?
+  status            KnowledgeRequestStatus @default(OPEN)
+  occurrenceCount   Int                    @default(1)
+  requestedById     String?
+  requestedBy       User?                  @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  resolvedArticleId String?
+  resolvedArticle   Article?               @relation("ResolvedKnowledgeRequest", fields: [resolvedArticleId], references: [id], onDelete: SetNull)
+  createdAt         DateTime               @default(now())
+  lastRequestedAt   DateTime               @default(now())
+  resolvedAt        DateTime?
+
+  @@unique([companyId, queryNormalized])
+  @@index([companyId, status, occurrenceCount])
 }
 
 model Permission {
@@ -268,22 +340,23 @@ model RolePermission {
 }
 
 model User {
-  id              String           @id
-  name            String
-  email           String
-  emailVerified   Boolean          @default(false)
-  image           String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  role            String?
-  banned          Boolean?         @default(false)
-  banReason       String?
-  banExpires      DateTime?
-  sessions        Session[]
-  accounts        Account[]
-  articleVersions ArticleVersion[]
-  auditEvents     AuditEvent[]
-  memberships     Membership[]
+  id                String             @id
+  name              String
+  email             String
+  emailVerified     Boolean            @default(false)
+  image             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  role              String?
+  banned            Boolean?           @default(false)
+  banReason         String?
+  banExpires        DateTime?
+  sessions          Session[]
+  accounts          Account[]
+  articleVersions   ArticleVersion[]
+  auditEvents       AuditEvent[]
+  memberships       Membership[]
+  knowledgeRequests KnowledgeRequest[]
 
   @@unique([email])
   @@map("user")

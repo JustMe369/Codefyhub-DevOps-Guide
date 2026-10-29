@@ -1,0 +1,34 @@
+{
+  "articles": [
+    {
+      "section": "devops-department",
+      "slug": "access-ubuntu-dev-environment-remotely",
+      "title": "Access the Ubuntu Desktop development environment from any device",
+      "description": "Connect securely to the Codefyhub Ubuntu Desktop graphical development environment from Windows, macOS, iOS, iPadOS, or Android.",
+      "difficulty": "FOUNDATION",
+      "contentType": "WORKFLOW",
+      "validationStatus": "SOURCE_REVIEWED",
+      "visibility": "INTERNAL",
+      "order": 1,
+      "bodyFile": "access-ubuntu-dev-environment-remotely.md",
+      "tags": ["devops", "workflow", "remote-access", "ubuntu", "rdp"],
+      "prerequisites": [
+        "An active Codefyhub company account",
+        "Authorization from the Codefyhub DevOps Department",
+        "A connection to the Codefyhub office network or approved company VPN",
+        "The remote password retrieved from the approved Codefyhub secret channel"
+      ],
+      "relatedGuides": [
+        "remote-access/beginner-remote-access",
+        "remote-access/connect-everywhere",
+        "secure-networking/wireguard"
+      ],
+      "applicablePlatforms": ["Windows", "macOS", "iOS", "iPadOS", "Android", "Ubuntu Desktop 24.04 LTS"],
+      "applicableVersions": ["Ubuntu Desktop 24.04 LTS", "RDP clients current at review date"],
+      "sourceTitles": ["Ubuntu Desktop remote desktop documentation", "Windows App remote PC documentation"],
+      "reviewedAt": "2026-10-28",
+      "testedAt": null,
+      "testEnvironment": null
+    }
+  ]
+}

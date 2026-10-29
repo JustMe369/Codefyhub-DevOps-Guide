@@ -10,9 +10,13 @@ type Context = { params: Promise<{ id: string; revision: string }> };
 const payloadSchema = z.object({ expectedUpdatedAt: z.coerce.date(), changeSummary: z.string().trim().min(3).max(240) });
 
 type Snapshot = {
+  sectionId?: string; slug?: string;
   title?: string; description?: string; difficulty?: "FOUNDATION" | "INTERMEDIATE" | "ADVANCED";
   contentType?: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH" | "FAQ" | "WORKFLOW" | "ISSUE_SOLUTION" | "POLICY";
   validationStatus?: "DRAFT" | "SOURCE_REVIEWED" | "LAB_TESTED"; readingMinutes?: number;
+  visibility?: "PUBLIC" | "INTERNAL" | "RESTRICTED";
+  applicablePlatforms?: string[]; applicableVersions?: string[]; prerequisites?: string[]; relatedGuides?: string[];
+  testedAt?: string | null; testEnvironment?: string | null; reviewDueAt?: string | null; expiresAt?: string | null;
   lastVerifiedAt?: string; verifiedBy?: string; verificationMethod?: string; testedVersions?: string;
 };
 
@@ -32,16 +36,37 @@ export async function POST(request: Request, context: Context) {
       if (!current || !source) return null;
       if (current.updatedAt.getTime() !== parsed.data.expectedUpdatedAt.getTime()) throw new ArticleConflictError();
       const snapshot = (source.snapshot ?? {}) as Snapshot;
+      if (snapshot.sectionId && snapshot.sectionId !== current.sectionId) {
+        const section = await tx.section.findFirst({ where: { id: snapshot.sectionId, companyId: actor.companyId }, select: { id: true } });
+        if (!section) throw new ArticleConflictError("The revision references a section outside this company.");
+      }
       const restored = await tx.article.update({
         where: { id },
         data: {
           body: source.body,
+          status: "DRAFT",
+          publishedAt: null,
+          reviewStatus: "DRAFT",
+          reviewedAt: null,
+          reviewedById: null,
+          reviewNote: null,
+          ...(snapshot.sectionId ? { sectionId: snapshot.sectionId } : {}),
+          ...(snapshot.slug ? { slug: snapshot.slug } : {}),
           ...(snapshot.title ? { title: snapshot.title } : {}),
           ...(snapshot.description ? { description: snapshot.description } : {}),
           ...(snapshot.difficulty ? { difficulty: snapshot.difficulty } : {}),
           ...(snapshot.contentType ? { contentType: snapshot.contentType } : {}),
           ...(snapshot.validationStatus ? { validationStatus: snapshot.validationStatus } : {}),
+          ...(snapshot.visibility ? { visibility: snapshot.visibility } : {}),
+          ...(snapshot.applicablePlatforms ? { applicablePlatforms: snapshot.applicablePlatforms } : {}),
+          ...(snapshot.applicableVersions ? { applicableVersions: snapshot.applicableVersions } : {}),
+          ...(snapshot.prerequisites ? { prerequisites: snapshot.prerequisites } : {}),
+          ...(snapshot.relatedGuides ? { relatedGuides: snapshot.relatedGuides } : {}),
           ...(snapshot.readingMinutes ? { readingMinutes: snapshot.readingMinutes } : {}),
+          ...(snapshot.testedAt !== undefined ? { testedAt: snapshot.testedAt ? new Date(snapshot.testedAt) : null } : {}),
+          ...(snapshot.testEnvironment !== undefined ? { testEnvironment: snapshot.testEnvironment } : {}),
+          ...(snapshot.reviewDueAt !== undefined ? { reviewDueAt: snapshot.reviewDueAt ? new Date(snapshot.reviewDueAt) : null } : {}),
+          ...(snapshot.expiresAt !== undefined ? { expiresAt: snapshot.expiresAt ? new Date(snapshot.expiresAt) : null } : {}),
           ...(snapshot.lastVerifiedAt ? { lastVerifiedAt: new Date(snapshot.lastVerifiedAt) } : {}),
           ...(snapshot.verifiedBy ? { verifiedBy: snapshot.verifiedBy } : {}),
           ...(snapshot.verificationMethod ? { verificationMethod: snapshot.verificationMethod } : {}),

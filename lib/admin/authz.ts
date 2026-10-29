@@ -88,6 +88,15 @@ export async function requireAdminIdentity(requestHeaders: Headers, permission?:
   return identity;
 }
 
+export function articleAccessWhere(identity: AdminIdentity) {
+  const canReadRestricted = canAccessRestrictedKnowledge(identity);
+  return { companyId: identity.companyId, ...(canReadRestricted ? {} : { visibility: { not: "RESTRICTED" as const } }) };
+}
+
+export function canAccessRestrictedKnowledge(identity: AdminIdentity) {
+  return identity.isPlatformAdmin || ["content.edit", "content.review", "content.publish"].some((permission) => identity.permissions.includes(permission));
+}
+
 export async function listAvailableCompanies(identity: AdminIdentity) {
   if (identity.isPlatformAdmin) {
     return prisma.company.findMany({

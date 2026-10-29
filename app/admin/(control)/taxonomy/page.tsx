@@ -9,5 +9,5 @@ export default async function AdminTaxonomyPage() {
     prisma.section.findMany({ where: { companyId: actor.companyId }, include: { _count: { select: { articles: true } } }, orderBy: { order: "asc" } }),
     prisma.tag.findMany({ where: { companyId: actor.companyId }, include: { _count: { select: { articleTags: true } } }, orderBy: { name: "asc" } }),
   ]);
-  return <main className="admin-page"><header className="admin-page-header"><div><div className="eyebrow">Knowledge topology</div><h1>Structure</h1><p>Control navigation sections and the tag vocabulary used across the guide.</p></div></header><TaxonomyManager initialSections={sections} initialTags={tags} /></main>;
+  return <main className="admin-page"><header className="admin-page-header"><div><div className="eyebrow">Knowledge topology</div><h1>Structure</h1><p>Control navigation sections and the tag vocabulary used across the guide.</p></div></header><TaxonomyManager initialSections={sections} initialTags={tags} canManage={actor.permissions.includes("structure.manage")} /></main>;
 }

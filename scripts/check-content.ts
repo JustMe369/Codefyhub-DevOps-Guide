@@ -45,6 +45,8 @@ try {
       if (!/expected (outcome|output)/i.test(article.body)) errors.push(`${article.section}/${article.slug}: reviewed operational content needs representative expected evidence`);
     }
     if (article.validationStatus === "LAB_TESTED" && (!article.testedAt || !article.testEnvironment)) errors.push(`${article.section}/${article.slug}: lab-tested content lacks environment/date evidence`);
+    if (article.status === "PUBLISHED" && article.reviewStatus !== "APPROVED") errors.push(`${article.section}/${article.slug}: published content is not independently approved`);
+    if (article.expiresAt && article.expiresAt <= new Date()) errors.push(`${article.section}/${article.slug}: published knowledge has expired and requires re-review`);
     if (article.validationStatus !== "LAB_TESTED" && (article.testedAt || article.testEnvironment)) errors.push(`${article.section}/${article.slug}: non-lab content cannot claim lab evidence`);
     for (const [needle, reason] of banned) if (article.body.includes(needle)) errors.push(`${article.section}/${article.slug}: ${reason}`);
   }

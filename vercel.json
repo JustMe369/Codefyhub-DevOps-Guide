@@ -1,3 +1,3 @@
 {
-  "buildCommand": "if [ \"$APPLY_DATABASE_MIGRATIONS\" = \"1\" ]; then npm run deploy:db; fi; npm run build"
+  "buildCommand": "bash scripts/vercel-build.sh"
 }

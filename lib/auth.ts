@@ -26,9 +26,6 @@ function createAuth() {
     account: {
       accountLinking: { disableImplicitLinking: true },
     },
-    session: {
-      cookieCache: { enabled: true, maxAge: 5 * 60 },
-    },
     plugins: [admin({ defaultRole: "user", adminRoles: ["admin"] }), nextCookies()],
   });
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Link2, Save, Send, Tags } from "lucide-react";
+import { CheckCircle2, Link2, Save, Send, Tags, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type EditableArticle = {
   id: string;
@@ -13,6 +14,8 @@ type EditableArticle = {
   difficulty: "FOUNDATION" | "INTERMEDIATE" | "ADVANCED";
   contentType: "CONCEPT" | "HOW_TO" | "RUNBOOK" | "REFERENCE" | "CONFIGURATION_RECIPE" | "LEARNING_PATH" | "FAQ" | "WORKFLOW" | "ISSUE_SOLUTION" | "POLICY";
   validationStatus: "DRAFT" | "SOURCE_REVIEWED" | "LAB_TESTED";
+  reviewStatus: "DRAFT" | "IN_REVIEW" | "CHANGES_REQUESTED" | "APPROVED";
+  visibility: "PUBLIC" | "INTERNAL" | "RESTRICTED";
   applicablePlatforms: string[];
   applicableVersions: string[];
   prerequisites: string[];
@@ -25,6 +28,10 @@ type EditableArticle = {
   testedVersions: string;
   testedAt: string | null;
   testEnvironment: string | null;
+  reviewDueAt: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  expiresAt: string | null;
   updatedAt: string;
   status: string;
 };
@@ -37,7 +44,8 @@ const textToList = (value: string) => value.split("\n").map((item) => item.trim(
 type SourceOption = { id: string; title: string; organization: string };
 type TagOption = { id: string; name: string };
 
-export function ArticleEditor({ initialArticle, sections, sources, tags, initialSourceIds, initialTagIds }: { initialArticle: EditableArticle; sections: SectionOption[]; sources: SourceOption[]; tags: TagOption[]; initialSourceIds: string[]; initialTagIds: string[] }) {
+export function ArticleEditor({ initialArticle, sections, sources, tags, initialSourceIds, initialTagIds, canReview, canPublish, isPlatformAdmin }: { initialArticle: EditableArticle; sections: SectionOption[]; sources: SourceOption[]; tags: TagOption[]; initialSourceIds: string[]; initialTagIds: string[]; canReview: boolean; canPublish: boolean; isPlatformAdmin: boolean }) {
+  const router = useRouter();
   const [article, setArticle] = useState(initialArticle);
   const [sourceIds, setSourceIds] = useState(initialSourceIds);
   const [tagIds, setTagIds] = useState(initialTagIds);
@@ -70,6 +78,7 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
           difficulty: article.difficulty,
           contentType: article.contentType,
           validationStatus: article.validationStatus,
+          visibility: article.visibility,
           applicablePlatforms: article.applicablePlatforms,
           applicableVersions: article.applicableVersions,
           prerequisites: article.prerequisites,
@@ -82,13 +91,15 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
           testedVersions: article.testedVersions,
           testedAt: article.testedAt,
           testEnvironment: article.testEnvironment,
+          reviewDueAt: article.reviewDueAt,
+          expiresAt: article.expiresAt,
         },
       }),
     });
     const result = (await response.json()) as { article?: EditableArticle; error?: string };
     if (!response.ok || !result.article) setError(result.error ?? "Save failed.");
     else {
-      setArticle((current) => ({ ...current, updatedAt: result.article!.updatedAt }));
+      setArticle((current) => ({ ...current, ...result.article! }));
       setChangeSummary("");
       setMessage("Saved as a new immutable revision.");
     }
@@ -97,6 +108,20 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
     } finally {
       setPending(false);
     }
+  }
+
+  async function review(action: "submit" | "approve" | "request_changes") {
+    setPending(true);
+    setError(null);
+    const note = action === "request_changes" ? window.prompt("Explain the required changes") ?? "" : "";
+    if (action === "request_changes" && note.trim().length === 0) { setPending(false); return; }
+    try {
+      const response = await fetch(`/api/admin/articles/${article.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, note }) });
+      const result = (await response.json()) as { article?: EditableArticle; error?: string };
+      if (!response.ok || !result.article) setError(result.error ?? "Review action failed.");
+      else { setArticle((current) => ({ ...current, ...result.article! })); setMessage(action === "submit" ? "Submitted for independent review." : action === "approve" ? "Review approved. The article is ready to publish." : "Changes requested."); }
+    } catch { setError("The review request could not reach the server."); }
+    finally { setPending(false); }
   }
 
   async function publish() {
@@ -142,6 +167,19 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
     }
   }
 
+  async function removeArticle(permanent: boolean) {
+    const confirmTitle = permanent ? window.prompt(`Type the full article title to permanently delete it:\n${article.title}`) : undefined;
+    if (permanent && confirmTitle !== article.title) return;
+    if (!window.confirm(permanent ? "Permanently delete this article and every revision?" : "Archive this article and remove it from publication?")) return;
+    setPending(true);
+    const response = await fetch(`/api/admin/articles/${article.id}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ permanent, confirmTitle }) });
+    const result = await response.json();
+    setPending(false);
+    if (!response.ok) return setError(result.error ?? "Article removal failed.");
+    router.replace("/admin/articles");
+    router.refresh();
+  }
+
   return (
     <div className="admin-editor-grid">
       <section className="admin-panel admin-editor-main">
@@ -156,6 +194,9 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         <label>Content type<select value={article.contentType} onChange={(event) => setField("contentType", event.target.value as EditableArticle["contentType"])}>{["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"].map((value) => <option key={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
         <label>Difficulty<select value={article.difficulty} onChange={(event) => setField("difficulty", event.target.value as EditableArticle["difficulty"])}>{["FOUNDATION", "INTERMEDIATE", "ADVANCED"].map((value) => <option key={value}>{value}</option>)}</select></label>
         <label>Validation<select value={article.validationStatus} onChange={(event) => setField("validationStatus", event.target.value as EditableArticle["validationStatus"])}>{["DRAFT", "SOURCE_REVIEWED", "LAB_TESTED"].map((value) => <option key={value}>{value}</option>)}</select></label>
+        <label>Visibility<select value={article.visibility} onChange={(event) => setField("visibility", event.target.value as EditableArticle["visibility"])}>{["PUBLIC", "INTERNAL", "RESTRICTED"].map((value) => <option key={value}>{value}</option>)}</select></label>
+        <label>Review due<input type="date" value={article.reviewDueAt?.slice(0, 10) ?? ""} onChange={(event) => setField("reviewDueAt", event.target.value ? new Date(`${event.target.value}T00:00:00.000Z`).toISOString() : null)} /></label>
+        <label>Expires / re-review<input type="date" value={article.expiresAt?.slice(0, 10) ?? ""} onChange={(event) => setField("expiresAt", event.target.value ? new Date(`${event.target.value}T00:00:00.000Z`).toISOString() : null)} /></label>
         <label>Reading minutes<input type="number" min={1} max={240} value={article.readingMinutes} onChange={(event) => setField("readingMinutes", Number(event.target.value))} /></label>
         <label>Order<input type="number" min={1} value={article.order} onChange={(event) => setField("order", Number(event.target.value))} /></label>
         <label>Platforms, one per line<textarea rows={3} value={listToText(article.applicablePlatforms)} onChange={(event) => setField("applicablePlatforms", textToList(event.target.value))} /></label>
@@ -173,7 +214,11 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         {error && <p className="admin-error" role="alert">{error}</p>}
         <div className="admin-editor-actions">
           <button type="button" onClick={save} disabled={pending || changeSummary.trim().length < 3}><Save size={16} /> Save revision</button>
-          <button type="button" className="admin-primary-button" onClick={publish} disabled={pending || article.validationStatus === "DRAFT" || sourceIds.length === 0}><Send size={16} /> Publish</button>
+          {article.reviewStatus !== "IN_REVIEW" && article.reviewStatus !== "APPROVED" && <button type="button" onClick={() => review("submit")} disabled={pending || article.validationStatus === "DRAFT" || sourceIds.length === 0}><Send size={16} /> Submit review</button>}
+          {canReview && article.reviewStatus === "IN_REVIEW" && <><button type="button" onClick={() => review("request_changes")} disabled={pending}>Request changes</button><button type="button" onClick={() => review("approve")} disabled={pending}>Approve</button></>}
+          {canPublish && <button type="button" className="admin-primary-button" onClick={publish} disabled={pending || article.reviewStatus !== "APPROVED"}><Send size={16} /> Publish</button>}
+          <button type="button" className="admin-danger-button" onClick={() => removeArticle(false)} disabled={pending}><Trash2 size={16} /> Archive</button>
+          {isPlatformAdmin && <button type="button" className="admin-danger-button" onClick={() => removeArticle(true)} disabled={pending}><Trash2 size={16} /> Delete permanently</button>}
         </div>
       </aside>
     </div>

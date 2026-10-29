@@ -55,11 +55,11 @@ Next.js Route Handlers are the correct deployment unit because the control plane
 
 - Better Auth 1.7 with the Prisma adapter stores users, sessions, accounts, and verification records in PostgreSQL.
 - GitHub is the sign-in provider.
-- `ADMIN_EMAILS` is an explicit allowlist. Unknown identities are rejected before user creation.
-- Allowed first-time identities receive the `admin` role.
+- Platform administrators are database-backed Better Auth users with the `admin` platform role.
+- Administrator email changes are performed from **Platform users**, audited, and revoke active sessions before the administrator signs in again.
 - Every protected page performs a real database-backed session check.
 - Every admin Route Handler repeats authorization at the data boundary. UI protection is never treated as sufficient authorization.
-- Session cookie caching is enabled for five minutes to reduce database reads in Vercel Functions.
+- Control-plane sessions are checked against PostgreSQL so suspension, membership changes, and session revocation take effect immediately.
 
 ### Content control
 
@@ -96,7 +96,8 @@ BETTER_AUTH_SECRET=<random value with at least 32 bytes>
 BETTER_AUTH_URL=https://codefyhub-dev-ops-guide.vercel.app
 GITHUB_CLIENT_ID=<GitHub OAuth app client id>
 GITHUB_CLIENT_SECRET=<GitHub OAuth app client secret>
-ADMIN_EMAILS=<comma-separated allowed GitHub account emails>
+ADMIN_BOOTSTRAP_EMAIL=<initial password administrator email, used only by the bootstrap script>
+ADMIN_BOOTSTRAP_PASSWORD=<initial password administrator password, used only by the bootstrap script>
 ```
 
 Create the GitHub OAuth application with this callback URL:

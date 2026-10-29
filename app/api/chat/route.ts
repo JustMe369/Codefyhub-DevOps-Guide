@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { createHash } from "crypto";
 import { Redis } from "@upstash/redis";
+import { Prisma } from "@/generated/prisma/client";
+import { getAdminIdentity } from "@/lib/admin/authz";
 import { prisma } from "@/lib/prisma";
 
 // ── Environment ──────────────────────────────────────────────────────────────
@@ -310,11 +313,11 @@ type RetrievedArray = RetrievedArticle[];
 /**
  * Expand query with synonyms from GlossaryTerm for better keyword matching.
  */
-async function expandQueryWithGlossary(query: string): Promise<string[]> {
+async function expandQueryWithGlossary(query: string, companyId?: string): Promise<string[]> {
   try {
     const terms = await prisma.glossaryTerm.findMany({
       where: {
-        company: { isPublic: true, status: "ACTIVE" },
+        ...(companyId ? { companyId } : { company: { isPublic: true, status: "ACTIVE" } }),
         term: { contains: query, mode: "insensitive" },
       },
       select: { term: true, definition: true },
@@ -348,7 +351,8 @@ async function expandQueryWithGlossary(query: string): Promise<string[]> {
  */
 async function semanticSearchArticles(
   queryEmbedding: number[],
-  limit: number = 10
+  limit: number = 10,
+  companyId?: string,
 ): Promise<Array<{
   id: string;
   title: string;
@@ -364,7 +368,10 @@ async function semanticSearchArticles(
   try {
     const embeddingLiteral = `[${queryEmbedding.join(",")}]`;
 
-    const rows = await prisma.$queryRaw`
+    const accessFilter = companyId
+      ? Prisma.sql`a."companyId" = ${companyId} AND a."visibility" IN ('PUBLIC', 'INTERNAL')`
+      : Prisma.sql`a."visibility" = 'PUBLIC' AND c."isPublic" = true AND c."status" = 'ACTIVE'`;
+    const rows = await prisma.$queryRaw(Prisma.sql`
       SELECT
         a."id",
         a."title",
@@ -375,18 +382,16 @@ async function semanticSearchArticles(
         a."body",
         a."difficulty",
         a."readingMinutes",
-        1 - (a."embedding" <=> '${embeddingLiteral}'::vector) AS similarity
+        1 - (a."embedding" <=> ${embeddingLiteral}::vector) AS similarity
       FROM "Article" a
       JOIN "Section" s ON a."sectionId" = s."id"
       JOIN "Company" c ON a."companyId" = c."id"
       WHERE a."status" = 'PUBLISHED'
-        AND a."visibility" = 'PUBLIC'
-        AND c."isPublic" = true
-        AND c."status" = 'ACTIVE'
+        AND ${accessFilter}
         AND a."embedding" IS NOT NULL
-      ORDER BY a."embedding" <=> '${embeddingLiteral}'::vector
+      ORDER BY a."embedding" <=> ${embeddingLiteral}::vector
       LIMIT ${limit}
-    ` as unknown as Array<{
+    `) as unknown as Array<{
       id: string;
       title: string;
       sectionTitle: string;
@@ -457,17 +462,16 @@ function scoreArticleRelevance(
  * Enhanced RAG: combines keyword search, semantic vector search, query expansion,
  * relevance scoring, and body excerpts.
  */
-async function retrieveRelevantArticles(query: string, limit: number = 3): Promise<RetrievedArray> {
+async function retrieveRelevantArticles(query: string, limit: number = 3, companyId?: string): Promise<RetrievedArray> {
   try {
     const queryLower = query.toLowerCase().trim();
-    const expandedQueries = await expandQueryWithGlossary(query);
+    const expandedQueries = await expandQueryWithGlossary(query, companyId);
 
     // ── Keyword search using all expanded queries ────────────────────────────
     const keywordArticles = await prisma.article.findMany({
       where: {
         status: "PUBLISHED",
-        visibility: "PUBLIC",
-        company: { isPublic: true, status: "ACTIVE" },
+        ...(companyId ? { companyId, visibility: { in: ["PUBLIC", "INTERNAL"] as const } } : { visibility: "PUBLIC" as const, company: { isPublic: true, status: "ACTIVE" as const } }),
         OR: expandedQueries.flatMap((q) => [
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },
@@ -499,7 +503,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3): Promi
 
     const queryEmbedding = await embedText(query);
     if (queryEmbedding) {
-      semanticArticles = await semanticSearchArticles(queryEmbedding, 10);
+      semanticArticles = await semanticSearchArticles(queryEmbedding, 10, companyId);
     }
 
     // ── Combine, deduplicate, and score ──────────────────────────────────────
@@ -527,7 +531,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3): Promi
         description: article.description,
         difficulty: article.difficulty,
         readingMinutes: article.readingMinutes,
-        url: `/guides/${article.section.slug}/${article.slug}`,
+        url: companyId ? `/admin/articles/${article.id}` : `/guides/${article.section.slug}/${article.slug}`,
         bodyExcerpt: article.body ? article.body.slice(0, 300) : null,
         relevanceScore: score,
         matchType,
@@ -558,7 +562,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3): Promi
           description: article.description,
           difficulty: article.difficulty,
           readingMinutes: article.readingMinutes,
-          url: `/guides/${article.sectionSlug}/${article.slug}`,
+          url: companyId ? `/admin/articles/${article.id}` : `/guides/${article.sectionSlug}/${article.slug}`,
           bodyExcerpt,
           relevanceScore: finalScore,
           matchType,
@@ -779,7 +783,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   const reqId = makeReqId();
   const startTime = Date.now();
   const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+  const rawIp = forwarded ? forwarded.split(",")[0].trim() : "unknown";
+  const ip = createHash("sha256").update(`${process.env.BETTER_AUTH_SECRET ?? "local"}:${rawIp}`).digest("hex").slice(0, 24);
   const origin = request.headers.get("origin") ?? "";
 
   log({ reqId, ts: new Date().toISOString(), event: "request_start", ip });
@@ -843,7 +848,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ── Prompt injection detection on user messages ──────────────────────────
   for (const msg of effectiveMessages) {
     if (msg.role === "user" && detectPromptInjection(msg.content)) {
-      log({ reqId, ts: new Date().toISOString(), event: "prompt_injection_detected", ip, details: { messagePreview: msg.content.slice(0, 100) } });
+      log({ reqId, ts: new Date().toISOString(), event: "prompt_injection_detected", ip });
       await logMetric("prompt_injection_detected", ip);
       return NextResponse.json(
         { error: "Request rejected: potential prompt injection detected." },
@@ -870,7 +875,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ── RAG retrieval ────────────────────────────────────────────────────────
   let retrievedArticles: RetrievedArray = [];
   if (userQuery && userQuery.length > 3) {
-    retrievedArticles = await retrieveRelevantArticles(userQuery, 3);
+    const identity = await getAdminIdentity(request.headers).catch(() => null);
+    const companyId = identity?.permissions.includes("ai.use") ? identity.companyId : undefined;
+    retrievedArticles = await retrieveRelevantArticles(userQuery, 3, companyId);
   }
 
   // ── Language resolution ──────────────────────────────────────────────────

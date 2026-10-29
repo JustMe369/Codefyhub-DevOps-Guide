@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createArticleSchema, listArticlesSchema } from "@/lib/admin/article-schema";
 import { createArticle } from "@/lib/admin/articles";
-import { requireAdminIdentity } from "@/lib/admin/authz";
+import { articleAccessWhere, requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: "Invalid article filters.", issues: parsed.error.flatten() }, { status: 400 });
     const { q, status, section, page, limit } = parsed.data;
     const where = {
-      companyId: actor.companyId,
+      ...articleAccessWhere(actor),
       ...(status ? { status } : {}),
       ...(section ? { section: { slug: section } } : {}),
       ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { slug: { contains: q, mode: "insensitive" as const } }] } : {}),

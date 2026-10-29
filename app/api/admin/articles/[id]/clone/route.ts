@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { articleSnapshot } from "@/lib/admin/articles";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
 import { prisma } from "@/lib/prisma";
@@ -53,7 +54,7 @@ export async function POST(request: Request, context: Context) {
           articleTags: { createMany: { data: source.articleTags.map(({ tagId }) => ({ tagId })) } },
         },
       });
-      await tx.articleVersion.create({ data: { articleId: created.id, revision: 1, body: created.body, changeSummary: `Cloned from ${source.section.slug}/${source.slug}`, createdById: actor.id } });
+      await tx.articleVersion.create({ data: { articleId: created.id, revision: 1, body: created.body, changeSummary: `Cloned from ${source.section.slug}/${source.slug}`, snapshot: articleSnapshot(created), createdById: actor.id } });
       await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "article.clone", entityType: "Article", entityId: created.id, summary: `Cloned ${source.section.slug}/${source.slug} into draft ${slug}`, metadata: { sourceArticleId: source.id } } });
       return created;
     });
