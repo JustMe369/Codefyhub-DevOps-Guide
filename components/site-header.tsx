@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Moon, Search, Sun, X } from "lucide-react";
+import { ArrowUpRight, BookOpenCheck, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -100,7 +100,7 @@ export function SiteHeader() {
       <div className="shell header-inner">
         <Link className="brand" href="/" aria-label="Codefyhub-DevOps Guide home">
           <span className="brand-mark"><Image src="/brand/Codefyhub-DevOps-g.jpg" alt="Codefyhub-DevOps logo" width={31} height={31} priority /></span>
-          <span>Codefyhub-DevOps Guide<small>Infrastructure operations</small></span>
+          <span className="brand-copy">Codefyhub <b>DevOps</b><small>Engineering knowledge bank</small></span>
         </Link>
         <button className="header-icon menu-toggle" type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-controls="primary-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
         <nav id="primary-navigation" className={`main-nav${menuOpen ? " open" : ""}`} aria-label="Primary navigation">
@@ -109,9 +109,9 @@ export function SiteHeader() {
           <Link onClick={closeMenu} href="/exam">Exam</Link>
           <Link onClick={closeMenu} href="/glossary">Glossary</Link>
           <Link onClick={closeMenu} href="/checklist">Readiness</Link>
-          <Link onClick={closeMenu} href="/portal">Company portal</Link>
+          <Link onClick={closeMenu} className="portal-nav-link" href="/portal"><BookOpenCheck size={15} /> Company Portal <ArrowUpRight size={13} /></Link>
         </nav>
-        <button className="header-icon theme-toggle" type="button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button>
+        <div className="header-tools"><button className="header-icon theme-toggle" type="button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button>
         <form className="search-form" action="/search" method="get" role="search">
           <Search size={16} aria-hidden="true" />
           <fieldset className="search-input-field">
@@ -129,7 +129,7 @@ export function SiteHeader() {
             {!searchLoading && results.map((result, index) => <Link id={`quick-result-${index}`} role="option" aria-selected={activeResult === index} className={activeResult === index ? "active" : ""} href={result.kind === "glossary" ? `/glossary#${result.id}` : `/guides/${result.sectionSlug}/${result.articleSlug}`} onClick={() => setSearchOpen(false)} key={`${result.kind}-${result.id}`}><span>{result.sectionTitle} · {result.contentType.toLowerCase().replaceAll("_", " ")}</span><strong>{result.title}</strong></Link>)}
             <Link className="quick-search-all" href={`/search?q=${encodeURIComponent(query)}`} onClick={() => setSearchOpen(false)}>View all search results</Link>
           </div>}
-        </form>
+        </form></div>
       </div>
     </header>
   );

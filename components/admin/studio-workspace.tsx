@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Copy, ExternalLink, FilePlus2, FileText, Monitor, Search, Smartphone, Tablet, CheckCircle, Clock, GitBranch, Hash, XCircle, RefreshCw } from "lucide-react";
+import { Copy, ExternalLink, FilePlus2, FileText, Monitor, Search, Smartphone, Tablet, CheckCircle, Hash, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -27,7 +27,7 @@ function PipelineBadge({ status, reviewStatus }: { status: string; reviewStatus:
   return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${color}`}>{combined}</span>;
 }
 
-export function StudioWorkspace({ sections, canCreate, canEdit }: { sections: StudioSection[]; canCreate: boolean; canEdit: boolean }) {
+export function StudioWorkspace({ sections, canCreate, canEdit, canReview, canPublish }: { sections: StudioSection[]; canCreate: boolean; canEdit: boolean; canReview: boolean; canPublish: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(sections[0]?.articles[0]?.id ?? "");
@@ -112,9 +112,9 @@ export function StudioWorkspace({ sections, canCreate, canEdit }: { sections: St
   }
 
   const canSubmit = article?.status === "DRAFT" && article.validationStatus !== "DRAFT";
-  const canApprove = article?.reviewStatus === "IN_REVIEW";
-  const canRequestChanges = article?.reviewStatus === "CHANGES_REQUESTED";
-  const canPublish = article?.reviewStatus === "APPROVED" && article.articleSources.length > 0;
+  const canApprove = canReview && article?.reviewStatus === "IN_REVIEW";
+  const canRequestChanges = canReview && article?.reviewStatus === "CHANGES_REQUESTED";
+  const canPublishArticle = canPublish && article?.reviewStatus === "APPROVED" && article.articleSources.length > 0;
   const isPublished = article?.status === "PUBLISHED";
 
   return <section className="studio-shell">
@@ -197,13 +197,14 @@ export function StudioWorkspace({ sections, canCreate, canEdit }: { sections: St
               <CheckCircle size={13} /> {article.reviewStatus === "CHANGES_REQUESTED" ? "Request changes" : "Approve for publish"}
             </button>
           )}
-          {article && canPublish && (
+          {article && canPublishArticle && (
             <button onClick={publishArticle} disabled={busy} className="px-3 py-1.5 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
               <Hash size={13} /> Publish to portal
             </button>
           )}
         </div>
       </header>
+      {message && <p className="sr-only" role="status" aria-live="polite">{message}</p>}
       <div className={`studio-preview ${device}`}>
         {article ? (
           <article className="studio-document">
