@@ -19,14 +19,23 @@ const sourceSchema = z.object({
 export async function GET(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers, "content.view");
-    const q = new URL(request.url).searchParams.get("q")?.trim().slice(0, 100);
-    const sources = await prisma.source.findMany({
-      where: { companyId: actor.companyId, ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { organization: { contains: q, mode: "insensitive" as const } }, { url: { contains: q, mode: "insensitive" as const } }] } : {}) },
-      include: { _count: { select: { articleSources: true } } },
-      orderBy: [{ organization: "asc" }, { title: "asc" }],
-      take: 100,
-    });
-    return NextResponse.json({ sources });
+    const url = new URL(request.url);
+    const q = url.searchParams.get("q")?.trim().slice(0, 100);
+    const page = z.coerce.number().min(1).default(1).parse(url.searchParams.get("page") ?? undefined);
+    const limit = z.coerce.number().min(1).max(100).default(25).parse(url.searchParams.get("limit") ?? undefined);
+    const skip = (page - 1) * limit;
+
+    const [sources, total] = await Promise.all([
+      prisma.source.findMany({
+        where: { companyId: actor.companyId, ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { organization: { contains: q, mode: "insensitive" as const } }, { url: { contains: q, mode: "insensitive" as const } }] } : {}) },
+        include: { _count: { select: { articleSources: true } } },
+        orderBy: [{ organization: "asc" }, { title: "asc" }],
+        skip,
+        take: limit,
+      }),
+      prisma.source.count({ where: { companyId: actor.companyId, ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { organization: { contains: q, mode: "insensitive" as const } }, { url: { contains: q, mode: "insensitive" as const } }] } : {}) } }),
+    ]);
+    return NextResponse.json({ sources, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     return adminErrorResponse(error);
   }

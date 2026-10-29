@@ -16,12 +16,22 @@ const roleSchema = z.object({
 export async function GET(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers, "roles.view");
-    const roles = await prisma.companyRole.findMany({
-      where: { companyId: actor.companyId },
-      include: { permissions: { include: { permission: true } }, _count: { select: { memberships: true } } },
-      orderBy: [{ isSystem: "desc" }, { name: "asc" }],
-    });
-    return NextResponse.json({ roles, permissions: permissionCatalog });
+    const url = new URL(request.url);
+    const page = z.coerce.number().min(1).default(1).parse(url.searchParams.get("page") ?? undefined);
+    const limit = z.coerce.number().min(1).max(100).default(25).parse(url.searchParams.get("limit") ?? undefined);
+    const skip = (page - 1) * limit;
+
+    const [roles, total] = await Promise.all([
+      prisma.companyRole.findMany({
+        where: { companyId: actor.companyId },
+        include: { permissions: { include: { permission: true } }, _count: { select: { memberships: true } } },
+        orderBy: [{ isSystem: "desc" }, { name: "asc" }],
+        skip,
+        take: limit,
+      }),
+      prisma.companyRole.count({ where: { companyId: actor.companyId } }),
+    ]);
+    return NextResponse.json({ roles, page, limit, total, totalPages: Math.ceil(total / limit), permissions: permissionCatalog });
   } catch (error) {
     return adminErrorResponse(error);
   }

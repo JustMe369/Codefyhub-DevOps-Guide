@@ -27,7 +27,7 @@ export function MemberManager({ initialMembers, initialInvitations, roles, canMa
     if (!response.ok) return setMessage(payload.error ?? "Invitation failed.");
     const refresh = await fetch("/api/admin/members");
     const refreshed = await refresh.json();
-    setMembers(refreshed.members);
+    setMembers(refreshed.items ?? refreshed.members ?? []);
     setInvitations(refreshed.invitations ?? []);
     form.reset();
     setInviteUrl(payload.inviteUrl ?? "");

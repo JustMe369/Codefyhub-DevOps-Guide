@@ -16,11 +16,21 @@ export async function GET(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers);
     if (!actor.isPlatformAdmin) return NextResponse.json({ error: "Platform administrator access is required." }, { status: 403 });
-    const companies = await prisma.company.findMany({
-      include: { _count: { select: { memberships: true, articles: true, sections: true } } },
-      orderBy: { name: "asc" },
-    });
-    return NextResponse.json({ companies });
+    const url = new URL(request.url);
+    const page = z.coerce.number().min(1).default(1).parse(url.searchParams.get("page") ?? undefined);
+    const limit = z.coerce.number().min(1).max(100).default(25).parse(url.searchParams.get("limit") ?? undefined);
+    const skip = (page - 1) * limit;
+
+    const [companies, total] = await Promise.all([
+      prisma.company.findMany({
+        include: { _count: { select: { memberships: true, articles: true, sections: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take: limit,
+      }),
+      prisma.company.count(),
+    ]);
+    return NextResponse.json({ companies, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     return adminErrorResponse(error);
   }

@@ -15,20 +15,42 @@ const memberSchema = z.object({
 export async function GET(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers, "members.view");
-    const [members, roles, invitations] = await Promise.all([
+    const url = new URL(request.url);
+    const page = z.coerce.number().min(1).default(1).parse(url.searchParams.get("page") ?? undefined);
+    const limit = z.coerce.number().min(1).max(100).default(25).parse(url.searchParams.get("limit") ?? undefined);
+    const includeCount = url.searchParams.get("count") !== "false";
+    const skip = (page - 1) * limit;
+
+    const [members, invitations, total] = await Promise.all([
       prisma.membership.findMany({
         where: { companyId: actor.companyId },
         include: { user: { select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }, role: true },
         orderBy: { user: { name: "asc" } },
+        skip,
+        take: limit,
       }),
-      prisma.companyRole.findMany({ where: { companyId: actor.companyId }, orderBy: { name: "asc" } }),
       prisma.memberInvitation.findMany({
         where: { companyId: actor.companyId, status: "PENDING", expiresAt: { gt: new Date() } },
         select: { id: true, email: true, name: true, status: true, expiresAt: true, createdAt: true, role: { select: { id: true, name: true, slug: true } } },
         orderBy: { createdAt: "desc" },
       }),
+      includeCount ? prisma.membership.count({ where: { companyId: actor.companyId } }) : Promise.resolve(0),
     ]);
-    return NextResponse.json({ members, roles, invitations });
+
+    const roles = await prisma.companyRole.findMany({ where: { companyId: actor.companyId }, orderBy: { name: "asc" } });
+
+    const response: Record<string, unknown> = {
+      items: members,
+      page,
+      limit,
+      invitations,
+      roles,
+    };
+    if (includeCount) {
+      response.total = total;
+      response.totalPages = Math.ceil(total / limit);
+    }
+    return NextResponse.json(response);
   } catch (error) {
     return adminErrorResponse(error);
   }

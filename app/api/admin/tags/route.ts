@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { tagSchema } from "@/lib/admin/catalog-schema";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
@@ -9,12 +10,22 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers, "content.view");
-    const tags = await prisma.tag.findMany({
-      where: { companyId: actor.companyId },
-      include: { _count: { select: { articleTags: true } } },
-      orderBy: { name: "asc" },
-    });
-    return NextResponse.json({ tags });
+    const url = new URL(request.url);
+    const page = z.coerce.number().min(1).default(1).parse(url.searchParams.get("page") ?? undefined);
+    const limit = z.coerce.number().min(1).max(100).default(25).parse(url.searchParams.get("limit") ?? undefined);
+    const skip = (page - 1) * limit;
+
+    const [tags, total] = await Promise.all([
+      prisma.tag.findMany({
+        where: { companyId: actor.companyId },
+        include: { _count: { select: { articleTags: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take: limit,
+      }),
+      prisma.tag.count({ where: { companyId: actor.companyId } }),
+    ]);
+    return NextResponse.json({ tags, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     return adminErrorResponse(error);
   }
