@@ -3,9 +3,13 @@ import { prisma } from "@/lib/prisma";
 
 export async function GuideNav() {
   const sections = await prisma.section.findMany({
-    where: { status: "PUBLISHED" },
+    where: {
+      status: "PUBLISHED",
+      company: { isPublic: true, status: "ACTIVE" },
+      articles: { some: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" } } },
+    },
     orderBy: { order: "asc" },
-    include: { articles: { where: { status: "PUBLISHED" }, orderBy: { order: "asc" }, select: { slug: true, title: true } } }
+    include: { articles: { where: { status: "PUBLISHED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" } }, orderBy: { order: "asc" }, select: { slug: true, title: true } } }
   });
   return (
     <>

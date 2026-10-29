@@ -47,11 +47,11 @@ export function ArticleRowActions({ articleId, title, status, canEdit, canPerman
     }
   }
 
-  return <div className="flex flex-wrap items-center gap-2">
+  return <div className="article-row-actions">
     {canEdit && <Link className="admin-secondary-button" href={`/admin/articles/${articleId}`}>Edit</Link>}
-    {canEdit && status !== "ARCHIVED" && <button type="button" className="admin-secondary-button" disabled={busy} onClick={() => update("archive")}><Archive size={14} /> Archive</button>}
-    {canEdit && status === "ARCHIVED" && <button type="button" className="admin-secondary-button" disabled={busy} onClick={() => update("restore")}><RotateCcw size={14} /> Restore</button>}
-    {canPermanentlyDelete && <button type="button" className="admin-secondary-button" disabled={busy} onClick={() => update("delete")}><Trash2 size={14} /> Delete permanently</button>}
+    {canEdit && status !== "ARCHIVED" && <button type="button" className="admin-secondary-button" disabled={busy} onClick={() => update("archive")}><Archive size={13} /> Archive</button>}
+    {canEdit && status === "ARCHIVED" && <button type="button" className="admin-secondary-button" disabled={busy} onClick={() => update("restore")}><RotateCcw size={13} /> Restore</button>}
+    {canPermanentlyDelete && <button type="button" className="admin-secondary-button article-delete-action" disabled={busy} onClick={() => update("delete")}><Trash2 size={13} /> Delete</button>}
     {message && <span role="status" className="text-xs text-red-700">{message}</span>}
   </div>;
 }
