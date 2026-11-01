@@ -42,9 +42,9 @@ export function PortalShell({ identity, companies, children }: { identity: Porta
 
   return <div className="portal-shell">
     <header className="portal-header">
-      <Link href="/portal" className="portal-brand">{identity.hasCompanyLogo ? <Image className="portal-brand-logo" src={`/api/portal/company-logo?companyId=${encodeURIComponent(identity.companyId)}`} alt={`${identity.companyName} logo`} width={36} height={36} unoptimized /> : <ShieldCheck size={22} aria-hidden="true" />}<span>Codefyhub Knowledge Bank<small>{identity.companyName}</small></span></Link>
-      <label className="portal-company-switcher"><Building2 size={16} /><span className="sr-only">Active company</span><select value={identity.companyId} onChange={(event) => switchCompany(event.target.value)} aria-label="Active company">{companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}</select></label>
-      <div className="portal-user"><span><strong>{identity.name}</strong><small>{identity.roleName}</small></span><button type="button" onClick={signOut}><LogOut size={16} /> Sign out</button></div>
+      <Link href="/portal" className="portal-brand"><span className="portal-brand-mark">{identity.hasCompanyLogo ? <Image className="portal-brand-logo" src={`/api/portal/company-logo?companyId=${encodeURIComponent(identity.companyId)}`} alt={`${identity.companyName} logo`} width={44} height={44} unoptimized /> : <ShieldCheck size={24} aria-hidden="true" />}</span><span>Codefyhub Knowledge Bank<small>{identity.companyName}</small></span></Link>
+      <label className="portal-company-switcher"><Building2 size={16} /><span><small>Active workspace</small><select value={identity.companyId} onChange={(event) => switchCompany(event.target.value)} aria-label="Active company">{companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}</select></span></label>
+      <div className="portal-user"><span><strong>{identity.name}</strong><small>{identity.roleName}</small></span><button type="button" onClick={signOut}><LogOut size={16} /> <span>Sign out</span></button></div>
     </header>
     <aside className="portal-sidebar">
       <nav aria-label="Company knowledge">
@@ -54,7 +54,7 @@ export function PortalShell({ identity, companies, children }: { identity: Porta
         })}
       </nav>
       <form action="/portal/knowledge" className="portal-side-search"><Search size={16} /><label className="sr-only" htmlFor="portal-side-query">Search company knowledge</label><input id="portal-side-query" name="q" type="search" placeholder="Search your bank…" minLength={2} /></form>
-      <p>Your access is isolated to <strong>{identity.companyName}</strong>. Only approved, current knowledge is shown.</p>
+      <div className="portal-sidebar-note"><span className="portal-sidebar-note-icon"><ShieldCheck size={15} /></span><p>Your access is isolated to <strong>{identity.companyName}</strong>. Only approved, current knowledge is shown.</p></div>
     </aside>
     <div className="portal-content">{children}</div>
   </div>;
