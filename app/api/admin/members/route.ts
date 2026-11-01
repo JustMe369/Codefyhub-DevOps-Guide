@@ -8,8 +8,8 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 const email = z.email().transform((value) => value.toLowerCase());
 const memberSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("LINK"), email, roleId: z.string().min(1) }),
-  z.object({ action: z.literal("INVITE"), name: z.string().trim().min(2).max(100), email, roleId: z.string().min(1) }),
+  z.object({ action: z.literal("LINK"), email, roleId: z.string().min(1), companyId: z.string().min(1).optional() }),
+  z.object({ action: z.literal("INVITE"), name: z.string().trim().min(2).max(100), email, roleId: z.string().min(1), companyId: z.string().min(1).optional() }),
 ]);
 
 export async function GET(request: Request) {
@@ -19,28 +19,35 @@ export async function GET(request: Request) {
     const page = z.coerce.number().min(1).default(1).parse(url.searchParams.get("page") ?? undefined);
     const limit = z.coerce.number().min(1).max(100).default(25).parse(url.searchParams.get("limit") ?? undefined);
     const includeCount = url.searchParams.get("count") !== "false";
+    const requestedCompanyId = url.searchParams.get("companyId") ?? actor.companyId;
+    if (!actor.isPlatformAdmin && requestedCompanyId !== actor.companyId) {
+      return NextResponse.json({ error: "You cannot manage members for another company." }, { status: 403 });
+    }
+    const targetCompany = await prisma.company.findFirst({ where: { id: requestedCompanyId, status: "ACTIVE" }, select: { id: true } });
+    if (!targetCompany) return NextResponse.json({ error: "Company not found or inactive." }, { status: 404 });
     const skip = (page - 1) * limit;
 
     const [members, invitations, total] = await Promise.all([
       prisma.membership.findMany({
-        where: { companyId: actor.companyId },
+        where: { companyId: targetCompany.id },
         include: { user: { select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }, role: true },
         orderBy: { user: { name: "asc" } },
         skip,
         take: limit,
       }),
       prisma.memberInvitation.findMany({
-        where: { companyId: actor.companyId, status: "PENDING", expiresAt: { gt: new Date() } },
+        where: { companyId: targetCompany.id, status: "PENDING", expiresAt: { gt: new Date() } },
         select: { id: true, email: true, name: true, status: true, expiresAt: true, createdAt: true, role: { select: { id: true, name: true, slug: true } } },
         orderBy: { createdAt: "desc" },
       }),
-      includeCount ? prisma.membership.count({ where: { companyId: actor.companyId } }) : Promise.resolve(0),
+      includeCount ? prisma.membership.count({ where: { companyId: targetCompany.id } }) : Promise.resolve(0),
     ]);
 
-    const roles = await prisma.companyRole.findMany({ where: { companyId: actor.companyId }, orderBy: { name: "asc" } });
+    const roles = await prisma.companyRole.findMany({ where: { companyId: targetCompany.id }, orderBy: { name: "asc" } });
 
     const response: Record<string, unknown> = {
       items: members,
+      companyId: targetCompany.id,
       page,
       limit,
       invitations,
@@ -67,8 +74,14 @@ export async function POST(request: Request) {
       action: body.action ?? "INVITE",
     });
     if (!parsed.success) return NextResponse.json({ error: "Invalid member payload.", issues: parsed.error.flatten() }, { status: 400 });
+    const targetCompanyId = parsed.data.companyId ?? actor.companyId;
+    if (!actor.isPlatformAdmin && targetCompanyId !== actor.companyId) {
+      return NextResponse.json({ error: "You cannot assign members to another company." }, { status: 403 });
+    }
+    const targetCompany = await prisma.company.findFirst({ where: { id: targetCompanyId, status: "ACTIVE" }, select: { id: true, name: true } });
+    if (!targetCompany) return NextResponse.json({ error: "Company not found or inactive." }, { status: 404 });
     const role = await prisma.companyRole.findFirst({
-      where: { id: parsed.data.roleId, companyId: actor.companyId },
+      where: { id: parsed.data.roleId, companyId: targetCompany.id },
       include: { permissions: { select: { permissionId: true } } },
     });
     if (!role) return NextResponse.json({ error: "Role not found." }, { status: 404 });
@@ -79,20 +92,20 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true, email: true } });
     if (parsed.data.action === "LINK") {
       if (!user) return NextResponse.json({ error: "No platform account uses this email. Invite the person instead." }, { status: 404 });
-      const existingMembership = await prisma.membership.findUnique({ where: { companyId_userId: { companyId: actor.companyId, userId: user.id } }, select: { id: true } });
+      const existingMembership = await prisma.membership.findUnique({ where: { companyId_userId: { companyId: targetCompany.id, userId: user.id } }, select: { id: true } });
       if (existingMembership) return NextResponse.json({ error: "This user is already linked to the selected company." }, { status: 409 });
       const membership = await prisma.$transaction(async (tx) => {
-        await tx.memberInvitation.updateMany({ where: { companyId: actor.companyId, email: user.email, status: "PENDING" }, data: { status: "REVOKED" } });
+        await tx.memberInvitation.updateMany({ where: { companyId: targetCompany.id, email: user.email, status: "PENDING" }, data: { status: "REVOKED" } });
         const created = await tx.membership.create({
-          data: { companyId: actor.companyId, userId: user.id, roleId: role.id },
+          data: { companyId: targetCompany.id, userId: user.id, roleId: role.id },
           include: { user: { select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }, role: { select: { id: true, name: true, slug: true } } },
         });
         await tx.auditEvent.create({
-          data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.link", entityType: "Membership", entityId: created.id, summary: `Linked ${user.email} to ${actor.companyName} as ${role.name}`, metadata: { userId: user.id, role: role.slug } },
+          data: { companyId: targetCompany.id, actorId: actor.id, actorEmail: actor.email, action: "member.link", entityType: "Membership", entityId: created.id, summary: `Linked ${user.email} to ${targetCompany.name} as ${role.name}`, metadata: { userId: user.id, role: role.slug } },
         });
         return created;
       });
-      return NextResponse.json({ membership, linked: true }, { status: 201 });
+      return NextResponse.json({ membership, linked: true, company: targetCompany }, { status: 201 });
     }
 
     if (user) return NextResponse.json({ error: "A platform account already uses this email. Use Link existing account instead." }, { status: 409 });
@@ -103,20 +116,20 @@ export async function POST(request: Request) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const invitation = await prisma.$transaction(async (tx) => {
       await tx.memberInvitation.updateMany({
-        where: { companyId: actor.companyId, email: inviteData.email, status: "PENDING" },
+        where: { companyId: targetCompany.id, email: inviteData.email, status: "PENDING" },
         data: { status: "REVOKED" },
       });
       const created = await tx.memberInvitation.create({
-        data: { companyId: actor.companyId, roleId: role.id, email: inviteData.email, name: inviteData.name, tokenHash, expiresAt, invitedById: actor.id },
+        data: { companyId: targetCompany.id, roleId: role.id, email: inviteData.email, name: inviteData.name, tokenHash, expiresAt, invitedById: actor.id },
         select: { id: true, email: true, name: true, status: true, expiresAt: true, createdAt: true, role: { select: { id: true, name: true, slug: true } } },
       });
       await tx.auditEvent.create({
-        data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.invite", entityType: "MemberInvitation", entityId: created.id, summary: `Invited ${inviteData.email} as ${role.name}`, metadata: { expiresAt: expiresAt.toISOString() } },
+        data: { companyId: targetCompany.id, actorId: actor.id, actorEmail: actor.email, action: "member.invite", entityType: "MemberInvitation", entityId: created.id, summary: `Invited ${inviteData.email} to ${targetCompany.name} as ${role.name}`, metadata: { expiresAt: expiresAt.toISOString() } },
       });
       return created;
     });
     const inviteUrl = new URL(`/admin/accept-invite?token=${encodeURIComponent(token)}`, request.url).toString();
-    return NextResponse.json({ invitation, inviteUrl }, { status: 201 });
+    return NextResponse.json({ invitation, inviteUrl, company: targetCompany }, { status: 201 });
   } catch (error) {
     return adminErrorResponse(error);
   }

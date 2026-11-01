@@ -27,25 +27,11 @@ export function MemberManager({ initialMembers, initialInvitations, roles, canMa
     if (companyId === activeCompanyId) return;
     setPendingId("COMPANY");
     setMessage("");
-    try {
-      const response = await fetch("/api/admin/context", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ companyId }) });
-      const payload = await response.json();
-      if (!response.ok) {
-        setMessage(payload.error ?? "Could not change the company assignment scope.");
-        router.refresh();
-        return;
-      }
-      router.refresh();
-    } catch {
-      setMessage("The company selection request could not reach the server.");
-      router.refresh();
-    } finally {
-      setPendingId(null);
-    }
+    router.push(`/admin/members?companyId=${encodeURIComponent(companyId)}`);
   }
 
   async function refreshDirectory() {
-    const response = await fetch("/api/admin/members");
+    const response = await fetch(`/api/admin/members?companyId=${encodeURIComponent(activeCompanyId)}`);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error ?? "Could not refresh company members.");
     setMembers(payload.items ?? []);
@@ -59,14 +45,14 @@ export function MemberManager({ initialMembers, initialInvitations, roles, canMa
     setMessage("");
     if (action === "LINK") setInviteUrl("");
     try {
-      const data = { action, ...Object.fromEntries(new FormData(form)) };
+      const data = { action, companyId: activeCompanyId, ...Object.fromEntries(new FormData(form)) };
       const response = await fetch("/api/admin/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       const payload = await response.json();
       if (!response.ok) return setMessage(payload.error ?? (action === "LINK" ? "Account linking failed." : "Invitation failed."));
       await refreshDirectory();
       form.reset();
       setInviteUrl(action === "INVITE" ? payload.inviteUrl ?? "" : "");
-      setMessage(action === "LINK" ? "Existing platform account linked to this company." : "Invitation created. Share the secure link with the invited person.");
+      setMessage(action === "LINK" ? `Existing platform account linked to ${activeCompanyName}.` : `Invitation to ${activeCompanyName} created. Share the secure link with the invited person.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The access request could not reach the server.");
     } finally {
