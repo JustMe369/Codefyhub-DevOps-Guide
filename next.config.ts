@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   poweredByHeader: false,
   typedRoutes: false,
+  outputFileTracingIncludes: {
+    "/api/portal/knowledge/*/pdf": [
+      "node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff",
+      "node_modules/@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff",
+    ],
+  },
   async headers() {
     return [
       {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Link2, Save, Send, Tags, Trash2 } from "lucide-react";
+import { CheckCircle2, FileUp, Link2, Save, Send, Tags, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 type EditableArticle = {
@@ -56,6 +56,36 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
 
   function setField<K extends keyof EditableArticle>(key: K, value: EditableArticle[K]) {
     setArticle((current) => ({ ...current, [key]: value }));
+  }
+
+  async function importMarkdown(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    setMessage(null);
+    const isMarkdown = /\.(?:md|markdown)$/i.test(file.name) || ["text/markdown", "text/plain"].includes(file.type);
+    if (!isMarkdown) {
+      setError("Choose a Markdown file ending in .md or .markdown.");
+      return;
+    }
+    if (file.size > 500_000) {
+      setError("Markdown files must be 500 KB or smaller.");
+      return;
+    }
+    try {
+      const body = await file.text();
+      if (body.trim().length < 80) {
+        setError("The Markdown file must contain at least 80 characters.");
+        return;
+      }
+      if (body.length > 500_000) {
+        setError("Markdown content must be 500,000 characters or fewer.");
+        return;
+      }
+      setField("body", body);
+      setMessage(`Loaded ${file.name}. Add a change summary and save the revision to keep it.`);
+    } catch {
+      setError("The selected Markdown file could not be read.");
+    }
   }
 
   async function save() {
@@ -185,7 +215,11 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
       <section className="admin-panel admin-editor-main">
         <label>Title<input value={article.title} onChange={(event) => setField("title", event.target.value)} /></label>
         <label>Description<textarea rows={3} value={article.description} onChange={(event) => setField("description", event.target.value)} /></label>
-        <label>Markdown body<textarea className="admin-code-editor" rows={28} value={article.body} onChange={(event) => setField("body", event.target.value)} /></label>
+        <div className="admin-markdown-field">
+          <div className="admin-markdown-heading"><label htmlFor="article-markdown-body">Markdown body</label><label className="admin-secondary-button admin-markdown-import"><FileUp size={16} /> Import Markdown<input className="sr-only" type="file" accept=".md,.markdown,text/markdown,text/plain" onChange={(event) => { void importMarkdown(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label></div>
+          <textarea id="article-markdown-body" className="admin-code-editor" rows={28} value={article.body} onChange={(event) => setField("body", event.target.value)} />
+          <small>Importing replaces the editor body only. Add a change summary and save to create the revision.</small>
+        </div>
       </section>
       <aside className="admin-panel admin-editor-meta">
         <div className="admin-status-line"><span className={`admin-status ${article.status.toLowerCase()}`}>{article.status}</span><span>{sourceIds.length} source{sourceIds.length === 1 ? "" : "s"}</span></div>
