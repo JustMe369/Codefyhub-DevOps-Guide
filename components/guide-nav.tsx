@@ -1,3 +1,4 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
@@ -5,7 +6,7 @@ export async function GuideNav() {
   const sections = await prisma.section.findMany({
     where: {
       status: "PUBLISHED",
-      company: { isPublic: true, status: "ACTIVE" },
+      company: publicCompanyWhere(),
       articles: { some: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } },
     },
     orderBy: { order: "asc" },
