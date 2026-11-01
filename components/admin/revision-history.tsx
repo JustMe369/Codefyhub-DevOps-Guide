@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Eye, History, RotateCcw } from "lucide-react";
+import { formatUtcDateTime } from "@/lib/date-format";
 
 type Revision = { revision: number; body: string; changeSummary: string; createdAt: string; createdBy?: { name: string; email: string } | null };
 
@@ -37,7 +38,7 @@ export function RevisionHistory({ articleId, expectedUpdatedAt, currentBody, rev
       {error && <p className="admin-error" role="alert">{error}</p>}
       <div className="admin-revision-list">
         {revisions.map((revision) => <article key={revision.revision}>
-          <div><strong>Revision {revision.revision}</strong><span>{revision.changeSummary}</span><small>{new Date(revision.createdAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })} · {revision.createdBy?.name ?? "Automated import"}</small></div>
+          <div><strong>Revision {revision.revision}</strong><span>{revision.changeSummary}</span><small><time dateTime={revision.createdAt}>{formatUtcDateTime(revision.createdAt)}</time> · {revision.createdBy?.name ?? "Automated import"}</small></div>
           <div className="admin-revision-actions"><button type="button" onClick={() => setSelected(revision)}><Eye size={15} /> Compare</button><button type="button" onClick={() => restore(revision)} disabled={pending !== null}><RotateCcw size={15} /> Restore</button></div>
         </article>)}
       </div>

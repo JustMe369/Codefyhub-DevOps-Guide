@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { Building2, CalendarCheck, FilePlus2, Link2, Save, Search, Trash2 } from "lucide-react";
+import { formatUtcDate } from "@/lib/date-format";
 
 type Source = { id: string; title: string; organization: string; url: string; sourceType: string; lastVerifiedAt: string; verifiedBy: string; _count: { articleSources: number } };
 
@@ -112,7 +113,7 @@ export function SourceManager({ initialSources, canManage }: { initialSources: S
           <label>Verified by<input aria-label="Verified by" disabled={!canManage} value={source.verifiedBy} maxLength={120} onChange={(event) => setSource(source.id, "verifiedBy", event.target.value)} /></label>
           <label>Last verified<input aria-label="Last verified" disabled={!canManage} type="date" required value={source.lastVerifiedAt.slice(0, 10)} onChange={(event) => setSource(source.id, "lastVerifiedAt", event.target.value)} /></label>
         </div>
-        <footer className="source-card-footer"><span><CalendarCheck size={14} /> {source.lastVerifiedAt ? new Date(source.lastVerifiedAt).toLocaleDateString() : "Verification date needed"}</span>{canManage && <div className="source-card-actions"><button type="button" disabled={pendingId !== null} onClick={() => void saveSource(source)}><Save size={15} /> {pendingId === source.id ? "Saving…" : "Save changes"}</button><button className="admin-danger-button" type="button" disabled={pendingId !== null} onClick={() => void deleteSource(source)}><Trash2 size={15} /> Delete</button></div>}</footer>
+        <footer className="source-card-footer"><span><CalendarCheck size={14} /> {source.lastVerifiedAt ? formatUtcDate(source.lastVerifiedAt) : "Verification date needed"}</span>{canManage && <div className="source-card-actions"><button type="button" disabled={pendingId !== null} onClick={() => void saveSource(source)}><Save size={15} /> {pendingId === source.id ? "Saving…" : "Save changes"}</button><button className="admin-danger-button" type="button" disabled={pendingId !== null} onClick={() => void deleteSource(source)}><Trash2 size={15} /> Delete</button></div>}</footer>
       </article>)}</div>}
     </section>
   </div>;
