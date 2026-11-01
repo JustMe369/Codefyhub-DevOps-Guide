@@ -1,29 +1,15 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createArticle } from "@/lib/admin/articles";
-import { createKnowledgeVisibilityValues } from "@/lib/admin/article-schema";
+import { knowledgeTemplateBodies, knowledgeTemplateSchema } from "@/lib/admin/article-template";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
 
 export const runtime = "nodejs";
-const templateSchema = z.object({
-  sectionId: z.string().cuid(),
-  contentType: z.enum(["FAQ", "ISSUE_SOLUTION", "POLICY"]),
-  title: z.string().trim().min(4).max(160).optional(),
-  description: z.string().trim().min(20).max(320).optional(),
-  visibility: z.enum(createKnowledgeVisibilityValues).default("INTERNAL"),
-});
-
-const bodies = {
-  FAQ: "## Question\n\nWrite the exact question employees ask.\n\n## Answer\n\nProvide the short, verified answer first.\n\n## Details\n\nAdd conditions, exceptions, ownership, and links to authoritative sources.",
-  ISSUE_SOLUTION: "## Symptoms\n\nRecord the observable problem and affected service.\n\n## Impact\n\nDescribe users, data, and operations affected.\n\n## Root cause\n\nDocument verified evidence, not assumptions.\n\n## Resolution\n\n1. Preserve evidence.\n2. Apply the reviewed remediation.\n3. Validate service and data integrity.\n\n## Prevention\n\nList monitoring, automation, or policy changes that prevent recurrence.",
-  POLICY: "## Policy statement\n\nState the mandatory rule in direct language.\n\n## Scope\n\nDefine teams, systems, and information covered.\n\n## Responsibilities\n\nIdentify owners, approvers, and operators.\n\n## Controls and evidence\n\nDescribe required controls and retained proof.\n\n## Exceptions\n\nDefine the approval and expiry process for exceptions.",
-} as const;
 
 export async function POST(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers, "content.create");
-    const parsed = templateSchema.safeParse(await request.json());
+    const parsed = knowledgeTemplateSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid template request." }, { status: 400 });
     const label = parsed.data.contentType.toLowerCase().replaceAll("_", "-");
     const title = parsed.data.title ?? `New ${parsed.data.contentType.toLowerCase().replaceAll("_", " ")}`;
@@ -33,7 +19,7 @@ export async function POST(request: Request) {
       slug: `${titleSlug}-${Date.now().toString(36)}`,
       title,
       description: parsed.data.description ?? "Complete this draft with verified company knowledge, accountable ownership, and supporting evidence.",
-      body: bodies[parsed.data.contentType],
+      body: knowledgeTemplateBodies[parsed.data.contentType],
       difficulty: "FOUNDATION",
       contentType: parsed.data.contentType,
       validationStatus: "DRAFT",
