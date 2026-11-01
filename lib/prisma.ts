@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { normalizePostgresConnectionString } from "@/lib/database-url";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -10,7 +11,7 @@ if (!databaseUrl) {
 }
 
 const adapter = new PrismaPg({
-  connectionString: databaseUrl,
+  connectionString: normalizePostgresConnectionString(databaseUrl),
   max: 1,
 });
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
