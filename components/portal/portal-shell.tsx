@@ -3,11 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BookOpenText, Building2, CircleHelp, Home, LogOut, Search, ShieldCheck, Wrench } from "lucide-react";
+import { BookOpenText, CircleHelp, Home, LogOut, ShieldCheck, Wrench } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 type PortalIdentity = { name: string; companyId: string; companyName: string; hasCompanyLogo: boolean; roleName: string };
-type CompanyOption = { id: string; name: string; slug: string; isPublic: boolean };
 
 const navigation = [
   { href: "/portal", label: "Home", icon: Home },
@@ -16,7 +15,7 @@ const navigation = [
   { href: "/portal/knowledge?type=ISSUE_SOLUTION", label: "Issue solutions", icon: Wrench, type: "ISSUE_SOLUTION" },
 ];
 
-export function PortalShell({ identity, companies, children }: { identity: PortalIdentity; companies: CompanyOption[]; children: React.ReactNode }) {
+export function PortalShell({ identity, children }: { identity: PortalIdentity; children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -28,34 +27,66 @@ export function PortalShell({ identity, companies, children }: { identity: Porta
     router.refresh();
   }
 
-  async function switchCompany(companyId: string) {
-    const response = await fetch("/api/portal/context", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyId }),
-    });
-    if (response.ok) {
-      router.replace("/portal");
-      router.refresh();
-    }
-  }
-
   return <div className="portal-shell">
     <header className="portal-header">
-      <Link href="/portal" className="portal-brand"><span className="portal-brand-mark">{identity.hasCompanyLogo ? <Image className="portal-brand-logo" src={`/api/portal/company-logo?companyId=${encodeURIComponent(identity.companyId)}`} alt={`${identity.companyName} logo`} width={44} height={44} unoptimized /> : <ShieldCheck size={24} aria-hidden="true" />}</span><span>Codefyhub Knowledge Bank<small>{identity.companyName}</small></span></Link>
-      <label className="portal-company-switcher"><Building2 size={16} /><span><small>Active workspace</small><select value={identity.companyId} onChange={(event) => switchCompany(event.target.value)} aria-label="Active company">{companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}</select></span></label>
-      <div className="portal-user"><span><strong>{identity.name}</strong><small>{identity.roleName}</small></span><button type="button" onClick={signOut}><LogOut size={16} /> <span>Sign out</span></button></div>
+      <div className="portal-header-row">
+        <Link href="/portal" className="portal-brand" aria-label="Codefyhub Knowledge Bank home">
+          <span className="portal-brand-mark">
+            {identity.hasCompanyLogo ? (
+              <Image
+                className="portal-brand-logo"
+                src={`/api/portal/company-logo?companyId=${encodeURIComponent(identity.companyId)}`}
+                alt={`${identity.companyName} logo`}
+                width={38}
+                height={38}
+                unoptimized
+              />
+            ) : (
+              <ShieldCheck size={18} aria-hidden="true" />
+            )}
+          </span>
+          <span className="portal-brand-copy">
+            <span className="portal-brand-name">Codefyhub Knowledge Bank</span>
+            <small className="portal-brand-sub">{identity.companyName}</small>
+          </span>
+        </Link>
+
+        <nav className="portal-nav" aria-label="Main">
+          {navigation.map(({ href, label, icon: Icon, type }) => {
+            const active = type
+              ? pathname === "/portal/knowledge" && selectedType === type
+              : href === "/portal/knowledge"
+                ? pathname === href && !selectedType
+                : pathname === href;
+            return (
+              <Link
+                href={href}
+                className={`portal-nav-link${active ? " active" : ""}`}
+                key={href}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon size={17} aria-hidden="true" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="portal-user" title={identity.name}>
+          <span className="portal-avatar">
+            {identity.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+          </span>
+          <span className="portal-user-info">
+            <span className="portal-user-name">{identity.name}</span>
+            <span className="portal-user-role">{identity.roleName}</span>
+          </span>
+          <button type="button" className="portal-user-btn" onClick={signOut}>
+            <LogOut size={14} aria-hidden="true" />
+            <span>Sign out</span>
+          </button>
+        </div>
+      </div>
     </header>
-    <aside className="portal-sidebar">
-      <nav aria-label="Company knowledge">
-        {navigation.map(({ href, label, icon: Icon, type }) => {
-          const active = type ? pathname === "/portal/knowledge" && selectedType === type : href === "/portal/knowledge" ? pathname === href && !selectedType : pathname === href;
-          return <Link href={href} className={active ? "active" : ""} key={href}><Icon size={18} />{label}</Link>;
-        })}
-      </nav>
-      <form action="/portal/knowledge" className="portal-side-search"><Search size={16} /><label className="sr-only" htmlFor="portal-side-query">Search company knowledge</label><input id="portal-side-query" name="q" type="search" placeholder="Search your bank…" minLength={2} /></form>
-      <div className="portal-sidebar-note"><span className="portal-sidebar-note-icon"><ShieldCheck size={15} /></span><p>Your access is isolated to <strong>{identity.companyName}</strong>. Only approved, current knowledge is shown.</p></div>
-    </aside>
     <div className="portal-content">{children}</div>
   </div>;
 }

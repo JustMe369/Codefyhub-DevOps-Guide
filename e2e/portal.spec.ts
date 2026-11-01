@@ -13,8 +13,12 @@ test("active company member can sign in and read the private knowledge bank", as
   await expect(page).toHaveURL(/\/portal(?:\/)?$/);
   await expect(page.locator(".portal-header")).toBeVisible();
   await expect(page.locator(".site-header")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: /Everything your company knows/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Your company’s answers/i })).toBeVisible();
   await expect(page.getByText("Approved and current documents only")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
   await page.goto("/portal/knowledge?type=FAQ");
   await expect(page.getByRole("heading", { name: "Questions & answers" })).toBeVisible();
 });
