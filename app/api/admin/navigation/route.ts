@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { headerMenuSchema } from "@/lib/site-navigation";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
@@ -36,6 +36,7 @@ export async function PUT(request: Request) {
     });
 
     revalidatePath("/", "layout");
+    revalidateTag("site-navigation", "max");
     return NextResponse.json({ configuration });
   } catch (error) {
     return adminErrorResponse(error);

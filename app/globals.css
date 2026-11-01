@@ -505,8 +505,6 @@ table::-webkit-scrollbar-thumb:hover {
 }
 @media (max-width: 480px) {
   .brand small { display: none; }
-  .header-tools { order: 3; width: auto; margin-left: auto; }
-  .header-tools .search-form { display: none; }
   .hero h1 { font-size: 41px; }
   .hero-copy { font-size: 16px; }
   .journey-grid { grid-template-columns: 1fr; }
@@ -848,6 +846,7 @@ table::-webkit-scrollbar-thumb:hover {
 .admin-auth-card h1 { margin: 8px 0 10px; font-size: clamp(28px, 5vw, 42px); }
 .admin-auth-card p { color: var(--muted); line-height: 1.65; }
 .admin-primary-button, .admin-editor-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 14px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #07110e; font: inherit; font-weight: 750; text-decoration: none; cursor: pointer; }
+[data-theme="light"] .admin-primary-button, [data-theme="light"] .admin-editor-actions button { color: #fff; }
 .admin-primary-button:disabled, .admin-editor-actions button:disabled { cursor: not-allowed; opacity: .45; }
 .admin-auth-card .admin-primary-button { width: 100%; margin-top: 18px; }
 .admin-login-form { display: grid; gap: 12px; margin-top: 20px; }
@@ -929,6 +928,7 @@ table::-webkit-scrollbar-thumb:hover {
 .workflow-completion-assistant > ul { display: grid; gap: 4px; margin: 0; padding-left: 18px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .workflow-completion-assistant > button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--panel); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .workflow-completion-assistant > button.workflow-assistant-primary { border-color: var(--accent); color: #07110e; background: var(--accent); }
+[data-theme="light"] .workflow-completion-assistant > button.workflow-assistant-primary { color: #fff; }
 .workflow-completion-assistant > button:disabled { cursor: not-allowed; opacity: .45; }
 .workflow-completion-assistant > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .navigation-manager-layout { display: grid; gap: 18px; }
@@ -1190,6 +1190,8 @@ html[dir="rtl"] h6 {
 .admin-company-switcher { display: grid; gap: 6px; margin-top: 24px; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 .admin-company-switcher select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--panel-2); font: 600 13px/1.2 inherit; text-transform: none; letter-spacing: 0; }
 .admin-manager-grid { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(0, 1.75fr); gap: 20px; align-items: start; }
+.admin-member-onboarding, .admin-member-directory { display: grid; gap: 18px; min-width: 0; }
+.admin-member-directory.full { grid-column: 1 / -1; }
 .admin-manager-message { grid-column: 1 / -1; margin: 0; padding: 13px 16px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 10px; color: var(--text); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
 .admin-check { display: flex !important; grid-template-columns: auto 1fr !important; align-items: center; gap: 9px; }
 .admin-check input { width: 16px !important; height: 16px; }

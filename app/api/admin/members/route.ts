@@ -6,11 +6,11 @@ import { adminErrorResponse } from "@/lib/admin/http";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
-const memberSchema = z.object({
-  name: z.string().trim().min(2).max(100),
-  email: z.email().transform((email) => email.toLowerCase()),
-  roleId: z.string().min(1),
-});
+const email = z.email().transform((value) => value.toLowerCase());
+const memberSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("LINK"), email, roleId: z.string().min(1) }),
+  z.object({ action: z.literal("INVITE"), name: z.string().trim().min(2).max(100), email, roleId: z.string().min(1) }),
+]);
 
 export async function GET(request: Request) {
   try {
@@ -71,16 +71,25 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true, email: true } });
-    if (user) {
+    if (parsed.data.action === "LINK") {
+      if (!user) return NextResponse.json({ error: "No platform account uses this email. Invite the person instead." }, { status: 404 });
+      const existingMembership = await prisma.membership.findUnique({ where: { companyId_userId: { companyId: actor.companyId, userId: user.id } }, select: { id: true } });
+      if (existingMembership) return NextResponse.json({ error: "This user is already linked to the selected company." }, { status: 409 });
       const membership = await prisma.$transaction(async (tx) => {
-        const created = await tx.membership.create({ data: { companyId: actor.companyId, userId: user.id, roleId: role.id } });
+        await tx.memberInvitation.updateMany({ where: { companyId: actor.companyId, email: user.email, status: "PENDING" }, data: { status: "REVOKED" } });
+        const created = await tx.membership.create({
+          data: { companyId: actor.companyId, userId: user.id, roleId: role.id },
+          include: { user: { select: { id: true, name: true, email: true, emailVerified: true, createdAt: true } }, role: { select: { id: true, name: true, slug: true } } },
+        });
         await tx.auditEvent.create({
-          data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.create", entityType: "Membership", entityId: created.id, summary: `Granted ${user.email} access as ${role.name}` },
+          data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.link", entityType: "Membership", entityId: created.id, summary: `Linked ${user.email} to ${actor.companyName} as ${role.name}`, metadata: { userId: user.id, role: role.slug } },
         });
         return created;
       });
-      return NextResponse.json({ membership, existingAccount: true }, { status: 201 });
+      return NextResponse.json({ membership, linked: true }, { status: 201 });
     }
+
+    if (user) return NextResponse.json({ error: "A platform account already uses this email. Use Link existing account instead." }, { status: 409 });
 
     const token = randomBytes(32).toString("base64url");
     const tokenHash = createHash("sha256").update(token).digest("hex");

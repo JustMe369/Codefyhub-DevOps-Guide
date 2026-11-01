@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
     "/api/portal/knowledge/*/pdf": [
       "node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff",
       "node_modules/@fontsource/noto-sans/files/noto-sans-latin-700-normal.woff",
+      "node_modules/@fontsource/noto-sans-arabic/files/noto-sans-arabic-arabic-400-normal.woff",
+      "node_modules/@fontsource/noto-sans-arabic/files/noto-sans-arabic-arabic-700-normal.woff",
     ],
   },
   async headers() {

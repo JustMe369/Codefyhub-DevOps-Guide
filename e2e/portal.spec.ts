@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 const memberEmail = process.env.MEMBER_TEST_EMAIL;
 const memberPassword = process.env.MEMBER_TEST_PASSWORD;
@@ -25,6 +26,8 @@ test("company portal protects knowledge and presents member sign-in", async ({ p
   await expect(page.getByLabel("Company email")).toBeVisible();
   await expect(page.getByLabel("Password")).toBeVisible();
   await expect(page.getByText(/answers, policies, and solutions/i)).toBeVisible();
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(results.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
 });
 
 test("company context endpoint rejects unauthenticated switching", async ({ page }) => {

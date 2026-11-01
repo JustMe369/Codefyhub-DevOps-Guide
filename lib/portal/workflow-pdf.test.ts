@@ -18,4 +18,19 @@ describe("workflow PDF generation", () => {
     expect(pdf.length).toBeGreaterThan(5_000);
     expect(pdf.subarray(-20).toString()).toContain("%%EOF");
   });
+
+  it("embeds Arabic workflow text without failing PDF generation", async () => {
+    const pdf = await createWorkflowPdf({
+      title: "سير عمل نشر الشبكة الخاصة",
+      description: "إجراء موثق وآمن لنشر اتصال الشبكة الخاصة والتحقق منه.",
+      body: "## الهدف\n\nنشر الاتصال بطريقة آمنة.\n\n## الخطوات\n\n1. أنشئ إعداد المستخدم.\n2. تحقق من الاتصال.",
+      sectionTitle: "الشبكات الآمنة",
+      verifiedBy: "فريق العمليات",
+      verificationMethod: "مراجعة الوثائق والتحقق في بيئة معتمدة.",
+      lastVerifiedAt: new Date("2026-11-01T07:55:59.000Z"),
+      sources: [],
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(5_000);
+  });
 });

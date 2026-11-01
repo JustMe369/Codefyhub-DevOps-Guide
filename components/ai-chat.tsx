@@ -126,8 +126,8 @@ function renderMessageContent(content: string, isStreaming: boolean) {
   );
 }
 
-export function AIChat() {
-  const [isOpen, setIsOpen] = useState(false);
+export function AIChat({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);

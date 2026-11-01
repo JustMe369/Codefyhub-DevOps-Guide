@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 const adminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL;
 const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
@@ -10,6 +11,8 @@ test("platform administrator can create and fully manage company knowledge", asy
   expect(initialSignIn.status()).toBe(200);
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 30_000 });
+  const adminAccessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(adminAccessibility.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
 
   await page.goto("/admin/articles/new?type=FAQ");
   await expect(page.getByRole("heading", { name: "New knowledge" })).toBeVisible();
@@ -20,6 +23,8 @@ test("platform administrator can create and fully manage company knowledge", asy
   await page.getByRole("button", { name: /Create draft and open editor/i }).click();
   await expect(page).toHaveURL(/\/admin\/articles\/[a-z0-9]+$/, { timeout: 30_000 });
   await expect(page.getByRole("heading", { name: articleTitle })).toBeVisible();
+  const editorAccessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(editorAccessibility.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? ""))).toEqual([]);
   await expect(page.getByLabel("Content type")).toHaveValue("FAQ");
 
   page.on("dialog", async (dialog) => {
@@ -49,7 +54,18 @@ test("platform administrator can create and fully manage company knowledge", asy
   await expect(page.getByRole("button", { name: /Save/ }).first()).toBeVisible();
 
   await page.goto("/admin/members");
+  await expect(page.getByRole("heading", { name: "Link existing account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Link user to company" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Invite new person" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Save$/ }).first()).toBeVisible();
+  const linkStatuses = await page.evaluate(async ({ email }) => {
+    const directory = await fetch("/api/admin/members").then((response) => response.json()) as { roles: Array<{ id: string }> };
+    const roleId = directory.roles[0].id;
+    const duplicate = await fetch("/api/admin/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "LINK", email, roleId }) });
+    const unknown = await fetch("/api/admin/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "LINK", email: "missing-user@codefyhub.local", roleId }) });
+    return { duplicate: duplicate.status, unknown: unknown.status };
+  }, { email: adminEmail! });
+  expect(linkStatuses).toEqual({ duplicate: 409, unknown: 404 });
 
   await page.goto("/admin/users");
   const currentUserRow = page.getByRole("row").filter({ hasText: "Current administrator account" });
