@@ -7,6 +7,7 @@ import { Redis } from "@upstash/redis";
 import { Prisma } from "@/generated/prisma/client";
 import { getAdminIdentity } from "@/lib/admin/authz";
 import { prisma } from "@/lib/prisma";
+import { isTrustedMutationOrigin } from "@/lib/request-security";
 
 // ── Environment ──────────────────────────────────────────────────────────────
 
@@ -246,7 +247,7 @@ async function logMetric(
   if (!redis) return;
 
   try {
-    await redis.incrby("aim:total_requests", 1);
+    if (event === "request_start") await redis.incrby("aim:total_requests", 1);
 
     switch (event) {
       case "success":
@@ -404,6 +405,8 @@ async function semanticSearchArticles(
         AND (a."expiresAt" IS NULL OR a."expiresAt" > CURRENT_TIMESTAMP)
         AND ${accessFilter}
         AND a."embedding" IS NOT NULL
+        AND a."embeddingModel" = ${EMBEDDING_MODEL}
+        AND a."embeddingRevision" = (SELECT MAX(v."revision") FROM "ArticleVersion" v WHERE v."articleId" = a."id")
       ORDER BY a."embedding" <=> ${embeddingLiteral}::vector
       LIMIT ${limit}
     `) as unknown as Array<{
@@ -811,12 +814,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   await logMetric("request_start", ip);
 
   // ── Origin validation (CSRF protection) ──────────────────────────────────
-  const allowedOrigins = [
-    "https://codefyhub-dev-ops-guide.vercel.app",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-  ];
-  if (origin && !allowedOrigins.includes(origin)) {
+  if (origin && !isTrustedMutationOrigin(request)) {
     log({ reqId, ts: new Date().toISOString(), event: "rejected_origin", ip, details: { origin } });
     return NextResponse.json({ error: "Request origin not allowed." }, { status: 403 });
   }

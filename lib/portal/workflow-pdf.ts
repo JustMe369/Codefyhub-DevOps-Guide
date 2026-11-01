@@ -4,6 +4,9 @@ import PDFDocument from "pdfkit";
 const fontDirectory = path.join(process.cwd(), "node_modules", "@fontsource", "noto-sans", "files");
 const regularFont = path.join(fontDirectory, "noto-sans-latin-400-normal.woff");
 const boldFont = path.join(fontDirectory, "noto-sans-latin-700-normal.woff");
+const arabicFontDirectory = path.join(process.cwd(), "node_modules", "@fontsource", "noto-sans-arabic", "files");
+const arabicRegularFont = path.join(arabicFontDirectory, "noto-sans-arabic-arabic-400-normal.woff");
+const arabicBoldFont = path.join(arabicFontDirectory, "noto-sans-arabic-arabic-700-normal.woff");
 
 export type WorkflowPdfInput = {
   title: string;
@@ -39,6 +42,10 @@ function formatVerifiedDate(value: Date) {
   const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][value.getUTCMonth()];
   return `${month} ${value.getUTCDate()}, ${value.getUTCFullYear()}`;
 }
+
+const containsArabic = (value: string) => /[\u0600-\u06ff]/.test(value);
+const contentFont = (value: string, bold = false) => containsArabic(value) ? (bold ? "ArabicBold" : "ArabicRegular") : (bold ? "Bold" : "Regular");
+const contentAlignment = (value: string) => containsArabic(value) ? "right" as const : "left" as const;
 
 function addMarkdown(doc: PDFKit.PDFDocument, markdown: string) {
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
@@ -86,8 +93,9 @@ function addMarkdown(doc: PDFKit.PDFDocument, markdown: string) {
     if (heading) {
       const level = heading[1].length;
       const sizes = [22, 17, 14, 12];
-      doc.moveDown(level === 1 ? 0.8 : 0.55).font("Bold").fontSize(sizes[level - 1]).fillColor(level <= 2 ? colors.accent : colors.ink)
-        .text(cleanInlineMarkdown(heading[2]), { width, lineGap: 2 }).moveDown(0.25);
+      const text = cleanInlineMarkdown(heading[2]);
+      doc.moveDown(level === 1 ? 0.8 : 0.55).font(contentFont(text, true)).fontSize(sizes[level - 1]).fillColor(level <= 2 ? colors.accent : colors.ink)
+        .text(text, { width, lineGap: 2, align: contentAlignment(text) }).moveDown(0.25);
       continue;
     }
 
@@ -96,19 +104,20 @@ function addMarkdown(doc: PDFKit.PDFDocument, markdown: string) {
     if (bullet || ordered) {
       const marker = ordered ? `${ordered[1]}.` : "•";
       const text = cleanInlineMarkdown((ordered ?? bullet)![ordered ? 2 : 1]);
-      doc.font("Regular").fontSize(10).fillColor(colors.ink).text(`${marker}  ${text}`, { width: width - 12, indent: 10, lineGap: 3 }).moveDown(0.2);
+      doc.font(contentFont(text)).fontSize(10).fillColor(colors.ink).text(`${marker}  ${text}`, { width: width - 12, indent: 10, lineGap: 3, align: contentAlignment(text) }).moveDown(0.2);
       continue;
     }
 
     if (/^\s*>/.test(line)) {
       const text = cleanInlineMarkdown(line.replace(/^\s*>\s?/, ""));
       const top = doc.y;
-      doc.font("Regular").fontSize(10).fillColor(colors.muted).text(text, doc.page.margins.left + 14, top, { width: width - 14, lineGap: 4 });
+      doc.font(contentFont(text)).fontSize(10).fillColor(colors.muted).text(text, doc.page.margins.left + 14, top, { width: width - 14, lineGap: 4, align: contentAlignment(text) });
       doc.strokeColor(colors.accent).lineWidth(2).moveTo(doc.page.margins.left + 4, top).lineTo(doc.page.margins.left + 4, doc.y).stroke().moveDown(0.3);
       continue;
     }
 
-    doc.font("Regular").fontSize(10).fillColor(colors.ink).text(cleanInlineMarkdown(line), { width, lineGap: 4 }).moveDown(0.35);
+    const text = cleanInlineMarkdown(line);
+    doc.font(contentFont(text)).fontSize(10).fillColor(colors.ink).text(text, { width, lineGap: 4, align: contentAlignment(text) }).moveDown(0.35);
   }
   renderCode();
 }
@@ -117,6 +126,8 @@ export async function createWorkflowPdf(input: WorkflowPdfInput): Promise<Buffer
   const doc = new PDFDocument({ size: "A4", margins: { top: 54, right: 54, bottom: 58, left: 54 }, bufferPages: true, info: { Title: input.title, Author: input.verifiedBy, Subject: input.description } });
   doc.registerFont("Regular", regularFont);
   doc.registerFont("Bold", boldFont);
+  doc.registerFont("ArabicRegular", arabicRegularFont);
+  doc.registerFont("ArabicBold", arabicBoldFont);
 
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -132,8 +143,8 @@ export async function createWorkflowPdf(input: WorkflowPdfInput): Promise<Buffer
   doc.x = doc.page.margins.left;
   doc.y = badgeTop + 38;
   doc.font("Regular").fontSize(9).fillColor(colors.muted).text(input.sectionTitle.toUpperCase(), { characterSpacing: 0.5 });
-  doc.moveDown(0.65).font("Bold").fontSize(25).fillColor(colors.ink).text(input.title, { width: contentWidth, lineGap: 3 });
-  doc.moveDown(0.7).font("Regular").fontSize(11).fillColor(colors.muted).text(input.description, { width: contentWidth, lineGap: 5 });
+  doc.moveDown(0.65).font(contentFont(input.title, true)).fontSize(25).fillColor(colors.ink).text(input.title, { width: contentWidth, lineGap: 3, align: contentAlignment(input.title) });
+  doc.moveDown(0.7).font(contentFont(input.description)).fontSize(11).fillColor(colors.muted).text(input.description, { width: contentWidth, lineGap: 5, align: contentAlignment(input.description) });
   doc.moveDown(1.1);
   const metaTop = doc.y;
   doc.roundedRect(doc.page.margins.left, metaTop, contentWidth, 48, 6).fill(colors.accentSoft);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ArticleConflictError } from "@/lib/admin/articles";
+import { ArticleConflictError, invalidateArticleEmbedding } from "@/lib/admin/articles";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
 import { prisma } from "@/lib/prisma";
@@ -50,6 +50,7 @@ export async function POST(request: Request, context: Context) {
           reviewedAt: null,
           reviewedById: null,
           reviewNote: null,
+          ...(current.origin === "SOURCE" ? { syncStatus: "MODIFIED" as const } : {}),
           ...(snapshot.sectionId ? { sectionId: snapshot.sectionId } : {}),
           ...(snapshot.slug ? { slug: snapshot.slug } : {}),
           ...(snapshot.title ? { title: snapshot.title } : {}),
@@ -73,6 +74,7 @@ export async function POST(request: Request, context: Context) {
           ...(snapshot.testedVersions ? { testedVersions: snapshot.testedVersions } : {}),
         },
       });
+      await invalidateArticleEmbedding(tx, id);
       const nextRevision = (current.versions[0]?.revision ?? 0) + 1;
       await tx.articleVersion.create({
         data: { articleId: id, revision: nextRevision, body: restored.body, changeSummary: parsed.data.changeSummary, snapshot: { ...snapshot, restoredFromRevision: revision }, createdById: actor.id },

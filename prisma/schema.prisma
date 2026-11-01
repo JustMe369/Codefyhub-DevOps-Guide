@@ -77,6 +77,20 @@ enum KnowledgeRequestStatus {
   DISMISSED
 }
 
+enum ContentOrigin {
+  ADMIN
+  SOURCE
+  IMPORT
+  CONNECTOR
+}
+
+enum ContentSyncStatus {
+  NOT_APPLICABLE
+  IN_SYNC
+  MODIFIED
+  CONFLICT
+}
+
 model Section {
   id        String        @id @default(cuid())
   companyId String        @default("codefyhub-company")
@@ -87,6 +101,7 @@ model Section {
   icon      String
   order     Int
   status    ContentStatus @default(PUBLISHED)
+  origin    ContentOrigin @default(ADMIN)
   articles  Article[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -107,6 +122,12 @@ model Article {
   description         String
   body                String                      @db.Text
   embedding           Unsupported("vector(384)")?
+  embeddingRevision   Int?
+  embeddingModel      String?
+  origin              ContentOrigin               @default(ADMIN)
+  syncStatus          ContentSyncStatus           @default(NOT_APPLICABLE)
+  sourceKey           String?
+  sourceHash          String?
   difficulty          Difficulty                  @default(FOUNDATION)
   contentType         ContentType                 @default(CONCEPT)
   validationStatus    ValidationStatus            @default(DRAFT)
@@ -142,6 +163,7 @@ model Article {
   @@unique([sectionId, slug])
   @@unique([sectionId, order])
   @@index([companyId, status, visibility])
+  @@index([companyId, origin, syncStatus])
   @@index([status, publishedAt])
   @@index([title])
   @@index([contentType, difficulty, validationStatus], map: "Article_content_discovery_idx")

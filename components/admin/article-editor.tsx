@@ -35,6 +35,8 @@ type EditableArticle = {
   expiresAt: string | null;
   updatedAt: string;
   status: string;
+  origin: "ADMIN" | "SOURCE" | "IMPORT" | "CONNECTOR";
+  syncStatus: "NOT_APPLICABLE" | "IN_SYNC" | "MODIFIED" | "CONFLICT";
 };
 
 type SectionOption = { id: string; title: string };
@@ -256,6 +258,10 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
       </section>
       <aside className="admin-panel admin-editor-meta">
         <div className="admin-status-line"><span className={`admin-status ${article.status.toLowerCase()}`}>{article.status}</span><span>{savedSourceIds.length} saved source{savedSourceIds.length === 1 ? "" : "s"}</span></div>
+        {article.origin === "SOURCE" && <section className={`content-sync-notice ${article.syncStatus.toLowerCase()}`} aria-label="Source synchronization status">
+          <strong>Source-controlled · {article.syncStatus.replaceAll("_", " ")}</strong>
+          <p>{article.syncStatus === "IN_SYNC" ? "This revision matches its repository source." : article.syncStatus === "CONFLICT" ? "The repository source changed after a Studio edit. Resolve this conflict before the next source publication." : "This Studio revision is protected from automatic source overwrite."}</p>
+        </section>}
         {article.contentType === "WORKFLOW" && (() => {
           const issues = workflowCompletionIssues(article);
           const score = Math.max(0, Math.round(((10 - issues.length) / 10) * 100));

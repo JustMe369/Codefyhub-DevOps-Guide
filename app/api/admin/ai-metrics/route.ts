@@ -21,6 +21,7 @@ interface MetricsSnapshot {
   modelUsage: Record<string, number>;
   languageUsage: Record<string, number>;
   articlesRetrieved: number;
+  telemetryAvailable: boolean;
   timestamp: string;
 }
 
@@ -46,6 +47,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     modelUsage: {},
     languageUsage: {},
     articlesRetrieved: 0,
+    telemetryAvailable: Boolean(redis),
     timestamp: new Date().toISOString(),
   };
 
@@ -100,7 +102,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
       // Calculate average latency
       const totalLatencyKey = `${prefix}total_latency_ms`;
-      const requestCountKey = `${prefix}total_requests`;
+      const requestCountKey = `${prefix}successful_requests`;
       const totalLatencyVal = await redis.get(totalLatencyKey);
       const requestCountVal = await redis.get(requestCountKey);
 
@@ -110,7 +112,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         metrics.avgLatencyMs = requestCount > 0 ? totalLatency / requestCount : 0;
       }
     } catch {
-      // Redis unavailable — return zero metrics
+      metrics.telemetryAvailable = false;
     }
   }
 

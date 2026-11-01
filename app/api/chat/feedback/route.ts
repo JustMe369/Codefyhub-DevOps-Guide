@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { z } from "zod";
 import { requireAdminIdentity } from "@/lib/admin/authz";
@@ -36,7 +37,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (redis) {
     try {
-      const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+      const rawIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+      const ip = createHash("sha256").update(`${process.env.BETTER_AUTH_SECRET ?? "local"}:${rawIp}`).digest("hex").slice(0, 24);
       const rateKey = `feedback:rate:${ip}`;
       const count = await redis.incr(rateKey);
       if (count === 1) await redis.expire(rateKey, 60);

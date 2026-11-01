@@ -1,10 +1,15 @@
 import type { AdminIdentity } from "@/lib/admin/authz";
 import type { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { createArticleSchema, updateArticleSchema } from "@/lib/admin/article-schema";
 
 type CreateArticleInput = z.infer<typeof createArticleSchema>;
 type UpdateArticleInput = z.infer<typeof updateArticleSchema>;
+
+export async function invalidateArticleEmbedding(tx: Prisma.TransactionClient, articleId: string) {
+  await tx.$executeRaw`UPDATE "Article" SET "embedding" = NULL, "embeddingRevision" = NULL, "embeddingModel" = NULL WHERE "id" = ${articleId}`;
+}
 
 export class ArticleConflictError extends Error {
   constructor(message = "The article changed after this editor was opened.") {
@@ -132,8 +137,12 @@ export async function updateArticle(id: string, input: UpdateArticleInput, actor
         reviewedAt: null,
         reviewedById: null,
         reviewNote: null,
+        ...(current.origin === "SOURCE" ? { syncStatus: "MODIFIED" as const } : {}),
       },
     });
+    if (input.data.title !== undefined || input.data.description !== undefined || input.data.body !== undefined) {
+      await invalidateArticleEmbedding(tx, id);
+    }
     const revision = (current.versions[0]?.revision ?? 0) + 1;
     await tx.articleVersion.create({
       data: {

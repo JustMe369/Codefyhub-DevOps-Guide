@@ -10,57 +10,9 @@
  */
 
 import { prisma } from "../lib/prisma";
+import { reindexArticle } from "../lib/search-embeddings";
 
-const EMBEDDING_MODEL = "thenlper/gte-small"; // Free, 384-dim, good for semantic search
 const BATCH_SIZE = 10;
-
-/**
- * Call OpenRouter embedding API to generate a vector for the given text.
- */
-async function embedText(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured.");
-  }
-
-  const response = await fetch("https://openrouter.ai/api/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: text,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Embedding API error: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  const embedding = data.data?.[0]?.embedding;
-
-  if (!embedding || !Array.isArray(embedding)) {
-    throw new Error("No embedding returned from API.");
-  }
-
-  return embedding as number[];
-}
-
-/**
- * Build a searchable text representation of an article (title + description + body excerpt).
- */
-function articleToText(
-  title: string,
-  description: string | null,
-  body: string
-): string {
-  const bodyExcerpt = body.slice(0, 2000); // Limit body to first 2000 chars for embedding
-  return `${title}\n${description || ""}\n${bodyExcerpt}`;
-}
 
 /**
  * Main: fetch all published articles, generate embeddings, upsert into DB.
@@ -69,7 +21,7 @@ async function main() {
   console.log("🔍 Fetching published articles...");
   const articles = await prisma.article.findMany({
     where: { status: "PUBLISHED" },
-    select: { id: true, title: true, description: true, body: true },
+    select: { id: true },
   });
 
   console.log(`📚 Found ${articles.length} published articles.`);
@@ -83,13 +35,7 @@ async function main() {
 
     for (const article of batch) {
       try {
-        const text = articleToText(article.title, article.description, article.body);
-        const embedding = await embedText(text);
-
-        await prisma.article.update({
-          where: { id: article.id },
-          data: { embedding },
-        });
+        await reindexArticle(article.id);
 
         processed += 1;
         process.stdout.write(".");

@@ -1,7 +1,9 @@
 import { config } from "dotenv";
+import { createHash } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Difficulty, ContentType, ValidationStatus } from "../generated/prisma/client";
 import { loadSourceArticles, repositoryRoot } from "../lib/content/source-content";
+import { decideSourceSync } from "../lib/content/source-sync";
 import { additionalArticles, additionalSections } from "./additional-content";
 import { knowledgeExpansionArticles, knowledgeExpansionGlossary } from "./knowledge-expansion";
 import { gapArticles } from "./gap-content";
@@ -21,6 +23,7 @@ const sourceContent = [
 ];
 if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
+const sourceHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const testedVersionsBySection: Record<string, string> = {
   "start-here": "Vendor-supported releases current at the verification date",
   "storage-raid": "Linux mdadm and OpenZFS documentation current at the verification date",
@@ -945,6 +948,7 @@ const sourceRows = [
   { title: "Windows App remote PC documentation", organization: "Microsoft", url: "https://learn.microsoft.com/en-us/windows-app/get-started-connect-devices-desktops-apps?pivots=remote-pc", sourceType: "official documentation", sections: ["devops-department", "remote-access"] },
   { title: "WireGuard Quick Start", organization: "WireGuard", url: "https://www.wireguard.com/quickstart/", sourceType: "official documentation", sections: ["secure-networking", "remote-access"] },
   { title: "Amnezia documentation", organization: "Amnezia", url: "https://docs.amnezia.org/", sourceType: "official documentation", sections: ["secure-networking", "remote-access"] },
+  { title: "wg-easy documentation", organization: "wg-easy", url: "https://github.com/wg-easy/wg-easy", sourceType: "official project documentation", sections: ["devops-department", "secure-networking"] },
   { title: "Tailscale documentation", organization: "Tailscale", url: "https://tailscale.com/kb", sourceType: "official documentation", sections: ["remote-access"] },
   { title: "OpenZFS documentation", organization: "OpenZFS", url: "https://openzfs.github.io/openzfs-docs/", sourceType: "official documentation", sections: ["storage-raid", "proxmox", "production"] },
   { title: "mdadm manual", organization: "Ubuntu", url: "https://manpages.ubuntu.com/manpages/noble/en/man8/mdadm.8.html", sourceType: "official package manual", sections: ["storage-raid"] },
@@ -1078,31 +1082,39 @@ async function main() {
     const current = await db.section.findUnique({ where: { companyId_slug: { companyId, slug: section.slug } } });
     const changed = !current || current.title !== section.title || current.summary !== section.summary || current.icon !== section.icon || current.order !== section.order || current.status !== "PUBLISHED";
     const row = current
-      ? changed ? await db.section.update({ where: { id: current.id }, data: { ...section, status: "PUBLISHED" } }) : current
-      : await db.section.create({ data: { ...section, companyId } });
+      ? changed || current.origin !== "SOURCE" ? await db.section.update({ where: { id: current.id }, data: { ...section, status: "PUBLISHED", origin: "SOURCE" } }) : current
+      : await db.section.create({ data: { ...section, companyId, origin: "SOURCE" } });
     sectionMap.set(section.slug, row.id);
   }
 
-  await db.section.updateMany({ where: { companyId, slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
+  await db.section.updateMany({ where: { companyId, origin: "SOURCE", slug: { notIn: sections.map((section) => section.slug) }, status: { not: "ARCHIVED" } }, data: { status: "ARCHIVED" } });
 
   const expectedKeys = new Set(articles.map((article) => `${article.section}/${article.slug}`));
-  const existingArticles = await db.article.findMany({ where: { companyId }, include: { section: { select: { slug: true } } } });
+  const existingArticles = await db.article.findMany({ where: { companyId, origin: "SOURCE" }, include: { section: { select: { slug: true } } } });
   for (const existing of existingArticles) {
     if (expectedKeys.has(`${existing.section.slug}/${existing.slug}`)) continue;
     if (existing.status === "ARCHIVED") continue;
-    await db.article.update({
-      where: { id: existing.id },
-      data: { status: "ARCHIVED", order: existing.order + 1000 }
-    });
+    if (existing.syncStatus === "MODIFIED" || existing.syncStatus === "CONFLICT") {
+      await db.article.update({ where: { id: existing.id }, data: { syncStatus: "CONFLICT" } });
+    } else {
+      await db.article.update({ where: { id: existing.id }, data: { status: "ARCHIVED", order: existing.order + 1000 } });
+    }
   }
 
   const articleMap = new Map<string, string>();
+  const conflictedArticleIds = new Set<string>();
   for (const article of articles) {
     const sectionId = sectionMap.get(article.section)!;
+    const sourceKey = `${article.section}/${article.slug}`;
+    const nextSourceHash = sourceHash(article);
     const reviewedAt = article.reviewedAt ? new Date(`${article.reviewedAt}T00:00:00.000Z`) : verified;
     const data = {
       sectionId,
       companyId,
+      origin: "SOURCE" as const,
+      syncStatus: "IN_SYNC" as const,
+      sourceKey,
+      sourceHash: nextSourceHash,
       slug: article.slug,
       title: article.title,
       description: article.description,
@@ -1162,7 +1174,17 @@ async function main() {
     const row = existing
       ? await (async () => {
           const contentChanged = existing.body !== article.body || existing.title !== article.title || existing.description !== article.description;
-          const metadataChanged = existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.contentType !== data.contentType || existing.visibility !== data.visibility || existing.validationStatus !== data.validationStatus || existing.reviewStatus !== "APPROVED" || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || JSON.stringify(existing.applicablePlatforms) !== JSON.stringify(data.applicablePlatforms) || JSON.stringify(existing.applicableVersions) !== JSON.stringify(data.applicableVersions) || JSON.stringify(existing.prerequisites) !== JSON.stringify(data.prerequisites) || JSON.stringify(existing.relatedGuides) !== JSON.stringify(data.relatedGuides) || existing.testEnvironment !== data.testEnvironment || existing.testedAt?.valueOf() !== data.testedAt?.valueOf() || (article.reviewedAt ? existing.lastVerifiedAt.valueOf() !== reviewedAt.valueOf() : reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
+          const syncDecision = decideSourceSync({ origin: existing.origin, syncStatus: existing.syncStatus, contentChanged, previousSourceHash: existing.sourceHash, nextSourceHash });
+          if (syncDecision === "PRESERVE_ADMIN") {
+            conflictedArticleIds.add(existing.id);
+            return existing;
+          }
+          if (syncDecision === "PRESERVE_MODIFIED" || syncDecision === "MARK_CONFLICT") {
+            if (syncDecision === "MARK_CONFLICT") await db.article.update({ where: { id: existing.id }, data: { syncStatus: "CONFLICT" } });
+            conflictedArticleIds.add(existing.id);
+            return existing;
+          }
+          const metadataChanged = existing.origin !== "SOURCE" || existing.syncStatus !== "IN_SYNC" || existing.sourceKey !== sourceKey || existing.sourceHash !== nextSourceHash || existing.sectionId !== sectionId || existing.difficulty !== article.difficulty || existing.contentType !== data.contentType || existing.visibility !== data.visibility || existing.validationStatus !== data.validationStatus || existing.reviewStatus !== "APPROVED" || existing.readingMinutes !== data.readingMinutes || existing.order !== article.order || existing.status !== "PUBLISHED" || existing.verifiedBy !== verifiedBy || existing.verificationMethod !== data.verificationMethod || existing.testedVersions !== data.testedVersions || JSON.stringify(existing.applicablePlatforms) !== JSON.stringify(data.applicablePlatforms) || JSON.stringify(existing.applicableVersions) !== JSON.stringify(data.applicableVersions) || JSON.stringify(existing.prerequisites) !== JSON.stringify(data.prerequisites) || JSON.stringify(existing.relatedGuides) !== JSON.stringify(data.relatedGuides) || existing.testEnvironment !== data.testEnvironment || existing.testedAt?.valueOf() !== data.testedAt?.valueOf() || (article.reviewedAt ? existing.lastVerifiedAt.valueOf() !== reviewedAt.valueOf() : reverifyExisting && existing.lastVerifiedAt.valueOf() !== verified.valueOf());
           if (contentChanged) {
             const latest = await db.articleVersion.aggregate({ where: { articleId: existing.id }, _max: { revision: true } });
             await db.articleVersion.create({
@@ -1176,15 +1198,18 @@ async function main() {
             });
           }
           if (!contentChanged && !metadataChanged) return existing;
-          return db.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? reviewedAt, lastVerifiedAt: article.reviewedAt ? reviewedAt : reverifyExisting ? verified : existing.lastVerifiedAt } });
+          const updated = await db.article.update({ where: { id: existing.id }, data: { ...data, publishedAt: existing.publishedAt ?? reviewedAt, lastVerifiedAt: article.reviewedAt ? reviewedAt : reverifyExisting ? verified : existing.lastVerifiedAt } });
+          if (contentChanged) await db.$executeRaw`UPDATE "Article" SET "embedding" = NULL, "embeddingRevision" = NULL, "embeddingModel" = NULL WHERE "id" = ${existing.id}`;
+          return updated;
         })()
       : await db.article.create({ data });
-    articleMap.set(`${article.section}/${article.slug}`, row.id);
+    articleMap.set(sourceKey, row.id);
     if (!existing) await db.articleVersion.create({ data: { articleId: row.id, revision: 1, body: article.body, changeSummary: "Initial consolidated edition", snapshot: revisionSnapshot } });
     const latestVersion = await db.articleVersion.findFirst({ where: { articleId: row.id }, orderBy: { revision: "desc" } });
     if (latestVersion && latestVersion.snapshot === null && latestVersion.body === row.body) {
       await db.articleVersion.update({ where: { id: latestVersion.id }, data: { snapshot: revisionSnapshot } });
     }
+    if (row.origin !== "SOURCE" || conflictedArticleIds.has(row.id)) continue;
     await db.articleTag.deleteMany({ where: { articleId: row.id } });
     for (const tagSlug of article.tags ?? []) {
       const tag = await db.tag.upsert({
@@ -1208,6 +1233,7 @@ async function main() {
   }
 
   for (const [articleKey, articleId] of articleMap.entries()) {
+    if (conflictedArticleIds.has(articleId)) continue;
     const selectedTitles = articleSourceTitles[articleKey] ?? [];
     if (selectedTitles.length === 0) throw new Error(`No explicit source assignment for ${articleKey}`);
     const definition = articles.find((article) => `${article.section}/${article.slug}` === articleKey)!;

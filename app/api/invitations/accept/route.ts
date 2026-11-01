@@ -29,10 +29,25 @@ export async function POST(request: Request) {
   if (existing) return NextResponse.json({ error: "An account already exists for this email. Ask an administrator to grant access directly." }, { status: 409 });
 
   const created = await getAuth().api.createUser({ body: { name: invitation.name, email: invitation.email, password: parsed.data.password, role: "user" } });
-  await prisma.$transaction(async (tx) => {
-    await tx.membership.create({ data: { companyId: invitation.companyId, userId: created.user.id, roleId: invitation.roleId } });
-    await tx.memberInvitation.update({ where: { id: invitation.id }, data: { status: "ACCEPTED", acceptedAt: new Date(), acceptedById: created.user.id } });
-    await tx.auditEvent.create({ data: { companyId: invitation.companyId, actorId: created.user.id, actorEmail: invitation.email, action: "member.invite.accept", entityType: "MemberInvitation", entityId: invitation.id, summary: `${invitation.email} accepted an invitation as ${invitation.role.name}` } });
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.memberInvitation.updateMany({
+        where: { id: invitation.id, status: "PENDING", expiresAt: { gt: new Date() } },
+        data: { status: "ACCEPTED", acceptedAt: new Date(), acceptedById: created.user.id },
+      });
+      if (claimed.count !== 1) throw new Error("INVITATION_ALREADY_CLAIMED");
+      await tx.membership.create({ data: { companyId: invitation.companyId, userId: created.user.id, roleId: invitation.roleId } });
+      await tx.auditEvent.create({ data: { companyId: invitation.companyId, actorId: created.user.id, actorEmail: invitation.email, action: "member.invite.accept", entityType: "MemberInvitation", entityId: invitation.id, summary: `${invitation.email} accepted an invitation as ${invitation.role.name}` } });
+    });
+  } catch (error) {
+    // Better Auth owns account creation and cannot participate in the Prisma
+    // transaction. Compensate so a failed membership write does not strand an
+    // unusable account that blocks a safe invitation retry.
+    await prisma.user.delete({ where: { id: created.user.id } }).catch(() => undefined);
+    if (error instanceof Error && error.message === "INVITATION_ALREADY_CLAIMED") {
+      return NextResponse.json({ error: "This invitation has already been used." }, { status: 409 });
+    }
+    throw error;
+  }
   return NextResponse.json({ ok: true, company: invitation.company.name });
 }

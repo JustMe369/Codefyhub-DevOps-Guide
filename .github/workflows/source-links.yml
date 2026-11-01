@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18.2-alpine
+        image: pgvector/pgvector:0.8.7-pg18-bookworm
         env:
           POSTGRES_USER: devops_guide
           POSTGRES_PASSWORD: test_password_only
