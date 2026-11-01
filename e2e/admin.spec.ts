@@ -54,6 +54,9 @@ test("platform administrator can create and fully manage company knowledge", asy
   await expect(page.getByRole("button", { name: /Save/ }).first()).toBeVisible();
 
   await page.goto("/admin/members");
+  await expect(page.getByRole("heading", { name: "Company assignment scope" })).toBeVisible();
+  await expect(page.getByLabel("Company assignment scope")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Manage companies" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Link existing account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Link user to company" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Invite new person" })).toBeVisible();

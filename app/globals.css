@@ -1192,6 +1192,16 @@ html[dir="rtl"] h6 {
 .admin-manager-grid { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(0, 1.75fr); gap: 20px; align-items: start; }
 .admin-member-onboarding, .admin-member-directory { display: grid; gap: 18px; min-width: 0; }
 .admin-member-directory.full { grid-column: 1 / -1; }
+.admin-member-company-scope { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(260px, 1.2fr) minmax(240px, .8fr); gap: 20px 28px; align-items: center; padding: 20px; }
+.admin-company-scope-copy { display: flex; gap: 14px; align-items: flex-start; }
+.admin-company-scope-copy h2 { margin: 3px 0 6px; font-size: 19px; }
+.admin-company-scope-copy p { margin: 0; color: var(--muted); }
+.admin-company-scope-icon { display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 11px; color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--panel)); }
+.admin-member-company-scope > label { display: grid; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.admin-member-company-scope select { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--bg); font: inherit; font-weight: 700; }
+.admin-company-scope-summary { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+.admin-company-scope-summary span { display: inline-flex; align-items: center; gap: 6px; }
+.admin-company-scope-summary a { margin-left: auto; color: var(--accent); font-weight: 700; text-decoration: none; }
 .admin-manager-message { grid-column: 1 / -1; margin: 0; padding: 13px 16px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 10px; color: var(--text); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
 .admin-check { display: flex !important; grid-template-columns: auto 1fr !important; align-items: center; gap: 9px; }
 .admin-check input { width: 16px !important; height: 16px; }
@@ -1330,6 +1340,8 @@ html[dir="rtl"] h6 {
 
 @media (max-width: 820px) {
   .admin-manager-grid, .admin-role-layout { grid-template-columns: 1fr; }
+  .admin-member-company-scope { grid-template-columns: 1fr; }
+  .admin-company-scope-summary { grid-column: auto; }
   .studio-shell { display: block; }
   .studio-section-manager-body { grid-template-columns: 1fr; }
   .studio-section-card { grid-template-columns: minmax(0, 1fr) auto; }
