@@ -69,12 +69,15 @@ export function MemberManager({ initialMembers, initialInvitations, roles, canMa
   async function removeMember(member: Member) {
     if (!window.confirm(`Remove ${member.user.email} from this company? Their account in other companies will remain.`)) return;
     setPendingId(member.id);
+    setMessage("");
     try {
       const response = await fetch(`/api/admin/members/${member.id}`, { method: "DELETE" });
       const payload = await response.json();
       if (!response.ok) return setMessage(payload.error ?? "Member removal failed.");
       setMembers((items) => items.filter((item) => item.id !== member.id));
       setMessage("Member access removed and active sessions revoked.");
+    } catch {
+      setMessage("The member removal request could not reach the server.");
     } finally {
       setPendingId(null);
     }
@@ -82,11 +85,19 @@ export function MemberManager({ initialMembers, initialInvitations, roles, canMa
 
   async function revokeInvitation(invitation: Invitation) {
     if (!window.confirm(`Revoke the invitation for ${invitation.email}?`)) return;
-    const response = await fetch(`/api/admin/invitations/${invitation.id}`, { method: "DELETE" });
-    const payload = await response.json();
-    if (!response.ok) return setMessage(payload.error ?? "Invitation revocation failed.");
-    setInvitations((items) => items.filter((item) => item.id !== invitation.id));
-    setMessage("Invitation revoked.");
+    setPendingId(invitation.id);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/invitations/${invitation.id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) return setMessage(payload.error ?? "Invitation revocation failed.");
+      setInvitations((items) => items.filter((item) => item.id !== invitation.id));
+      setMessage("Invitation revoked.");
+    } catch {
+      setMessage("The invitation revocation request could not reach the server.");
+    } finally {
+      setPendingId(null);
+    }
   }
 
   return <div className="admin-manager-grid">
@@ -113,7 +124,7 @@ export function MemberManager({ initialMembers, initialInvitations, roles, canMa
 
     <div className={`admin-member-directory${canManage ? "" : " full"}`}>
       <section className="admin-panel admin-table-wrap"><div className="admin-panel-heading"><h2>Company members</h2><p>Role and status changes revoke active sessions immediately.</p></div><table className="admin-table"><thead><tr><th>Member</th><th>Role</th><th>Status</th><th>Account</th><th>Actions</th></tr></thead><tbody>{members.map((member) => { const isSelf = member.user.id === currentUserId; return <tr key={member.id}><td><strong>{member.user.name}</strong><span>{member.user.email}</span></td><td><select aria-label={`Role for ${member.user.email}`} disabled={!canManage || pendingId === member.id} value={member.roleId} onChange={(event) => { const roleId = event.target.value; setMember(member.id, { roleId, role: roles.find((role) => role.id === roleId)! }); }}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></td><td><select aria-label={`Status for ${member.user.email}`} disabled={!canManage || pendingId === member.id} value={member.status} onChange={(event) => setMember(member.id, { status: event.target.value as "ACTIVE" | "SUSPENDED" })}><option value="ACTIVE">Active</option><option value="SUSPENDED" disabled={isSelf}>Suspended</option></select></td><td>{isSelf ? "Current account" : member.user.emailVerified ? "Verified" : "Password account"}</td><td>{canManage && <div className="admin-row-actions"><button type="button" disabled={pendingId === member.id} onClick={() => void updateMember(member, member.roleId, member.status)}><Save size={15} /> Save</button>{!isSelf && <button className="admin-danger-button" type="button" disabled={pendingId === member.id} onClick={() => void removeMember(member)}><Trash2 size={15} /> Remove</button>}</div>}</td></tr>; })}</tbody></table>{members.length === 0 && <p className="admin-empty">No company members yet.</p>}</section>
-      {invitations.length > 0 && <section className="admin-panel admin-table-wrap"><div className="admin-panel-heading"><h2>Pending invitations</h2><p>Invitations expire automatically after seven days.</p></div><table className="admin-table"><thead><tr><th>Invitee</th><th>Role</th><th>Expires</th><th>Actions</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td><strong>{invitation.name}</strong><span>{invitation.email}</span></td><td>{invitation.role.name}</td><td>{formatUtcDate(invitation.expiresAt)}</td><td>{canManage && <button className="admin-danger-button" type="button" onClick={() => void revokeInvitation(invitation)}><Trash2 size={15} /> Revoke</button>}</td></tr>)}</tbody></table></section>}
+      {invitations.length > 0 && <section className="admin-panel admin-table-wrap"><div className="admin-panel-heading"><h2>Pending invitations</h2><p>Invitations expire automatically after seven days.</p></div><table className="admin-table"><thead><tr><th>Invitee</th><th>Role</th><th>Expires</th><th>Actions</th></tr></thead><tbody>{invitations.map((invitation) => <tr key={invitation.id}><td><strong>{invitation.name}</strong><span>{invitation.email}</span></td><td>{invitation.role.name}</td><td>{formatUtcDate(invitation.expiresAt)}</td><td>{canManage && <button className="admin-danger-button" type="button" disabled={pendingId === invitation.id} onClick={() => void revokeInvitation(invitation)}><Trash2 size={15} /> {pendingId === invitation.id ? "Revoking…" : "Revoke"}</button>}</td></tr>)}</tbody></table></section>}
     </div>
     {message && <p className="admin-manager-message" role="status" aria-live="polite">{message}</p>}
   </div>;

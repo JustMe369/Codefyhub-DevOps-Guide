@@ -62,7 +62,7 @@ test("platform administrator can create and fully manage company knowledge", asy
     const directory = await fetch("/api/admin/members").then((response) => response.json()) as { roles: Array<{ id: string }> };
     const roleId = directory.roles[0].id;
     const duplicate = await fetch("/api/admin/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "LINK", email, roleId }) });
-    const unknown = await fetch("/api/admin/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "LINK", email: "missing-user@codefyhub.local", roleId }) });
+    const unknown = await fetch("/api/admin/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "LINK", email: `missing-${Date.now()}@codefyhub.local`, roleId }) });
     return { duplicate: duplicate.status, unknown: unknown.status };
   }, { email: adminEmail! });
   expect(linkStatuses).toEqual({ duplicate: 409, unknown: 404 });

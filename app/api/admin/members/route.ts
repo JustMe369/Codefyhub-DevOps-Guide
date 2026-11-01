@@ -59,7 +59,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const actor = await requireAdminIdentity(request.headers, "members.manage");
-    const parsed = memberSchema.safeParse(await request.json());
+    const body = await request.json();
+    const parsed = memberSchema.safeParse({
+      ...body,
+      // Keep older internal clients working while the UI moves to the explicit
+      // link-versus-invite workflow.
+      action: body.action ?? "INVITE",
+    });
     if (!parsed.success) return NextResponse.json({ error: "Invalid member payload.", issues: parsed.error.flatten() }, { status: 400 });
     const role = await prisma.companyRole.findFirst({
       where: { id: parsed.data.roleId, companyId: actor.companyId },
@@ -91,20 +97,21 @@ export async function POST(request: Request) {
 
     if (user) return NextResponse.json({ error: "A platform account already uses this email. Use Link existing account instead." }, { status: 409 });
 
+    const inviteData = parsed.data;
     const token = randomBytes(32).toString("base64url");
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const invitation = await prisma.$transaction(async (tx) => {
       await tx.memberInvitation.updateMany({
-        where: { companyId: actor.companyId, email: parsed.data.email, status: "PENDING" },
+        where: { companyId: actor.companyId, email: inviteData.email, status: "PENDING" },
         data: { status: "REVOKED" },
       });
       const created = await tx.memberInvitation.create({
-        data: { companyId: actor.companyId, roleId: role.id, email: parsed.data.email, name: parsed.data.name, tokenHash, expiresAt, invitedById: actor.id },
+        data: { companyId: actor.companyId, roleId: role.id, email: inviteData.email, name: inviteData.name, tokenHash, expiresAt, invitedById: actor.id },
         select: { id: true, email: true, name: true, status: true, expiresAt: true, createdAt: true, role: { select: { id: true, name: true, slug: true } } },
       });
       await tx.auditEvent.create({
-        data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.invite", entityType: "MemberInvitation", entityId: created.id, summary: `Invited ${parsed.data.email} as ${role.name}`, metadata: { expiresAt: expiresAt.toISOString() } },
+        data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.invite", entityType: "MemberInvitation", entityId: created.id, summary: `Invited ${inviteData.email} as ${role.name}`, metadata: { expiresAt: expiresAt.toISOString() } },
       });
       return created;
     });
