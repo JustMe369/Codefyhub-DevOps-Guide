@@ -1,9 +1,10 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Glossary" };
 
 export default async function GlossaryPage() {
-  const terms = await prisma.glossaryTerm.findMany({ where: { company: { isPublic: true, status: "ACTIVE" } }, orderBy: { term: "asc" } });
+  const terms = await prisma.glossaryTerm.findMany({ where: { company: publicCompanyWhere() }, orderBy: { term: "asc" } });
   return (
     <div className="shell glossary-page">
       <div className="eyebrow">Shared vocabulary</div>

@@ -1,3 +1,4 @@
+import { editorialIssues } from "../lib/content/editorial";
 import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
@@ -23,6 +24,8 @@ try {
   ] as const;
 
   for (const article of articles) {
+    for (const issue of editorialIssues(article, new Date(), { requireReviewed: false })) errors.push(`${article.section}/${article.slug}: ${issue}`);
+    if (article.validationStatus === "DRAFT") warnings.push(`${article.section}/${article.slug}: legacy published content awaits technical source review; new review/publication is blocked until completed`);
     const words = article.body.trim().split(/\s+/).length;
     const minimumWords = article.difficulty === "ADVANCED" ? 200 : article.difficulty === "INTERMEDIATE" ? 160 : 140;
     const expectedMinutes = Math.max(2, Math.ceil(words / 180));

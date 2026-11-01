@@ -1,3 +1,4 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import Link from "next/link";
 import { ArrowRight, DatabaseBackup, Gauge, ShieldCheck, Terminal, Server, HardDrive, Network, BadgeCheck, Compass, Boxes, GitBranch, Database, Cloud, Workflow, BrainCircuit, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -6,10 +7,10 @@ const iconMap = { Compass, HardDrive, Server, Shield: ShieldCheck, Terminal, Net
 
 export default async function HomePage() {
   const [sections, recentArticles] = await Promise.all([prisma.section.findMany({
-    where: { status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" }, articles: { some: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
+    where: { status: "PUBLISHED", company: publicCompanyWhere(), articles: { some: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } },
     orderBy: { order: "asc" },
     include: { _count: { select: { articles: { where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } } } } }
-  }), prisma.article.findMany({ where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: { isPublic: true, status: "ACTIVE" } }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
+  }), prisma.article.findMany({ where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: publicCompanyWhere() }, orderBy: { updatedAt: "desc" }, take: 4, include: { section: true } })]);
 
   return (
     <>

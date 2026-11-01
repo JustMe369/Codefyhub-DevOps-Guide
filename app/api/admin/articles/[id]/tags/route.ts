@@ -1,3 +1,4 @@
+import { lockArticle } from "@/lib/admin/locking";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminIdentity } from "@/lib/admin/authz";
@@ -16,6 +17,7 @@ export async function PUT(request: Request, context: Context) {
     const tagIds = [...new Set(parsed.data.tagIds)];
     const { id } = await context.params;
     const result = await prisma.$transaction(async (tx) => {
+      await lockArticle(tx, id, actor.companyId);
       const [article, tagCount] = await Promise.all([
         tx.article.findFirst({ where: { id, companyId: actor.companyId }, select: { id: true, slug: true, section: { select: { slug: true } } } }),
         tx.tag.count({ where: { id: { in: tagIds }, companyId: actor.companyId } }),

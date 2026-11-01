@@ -1,3 +1,5 @@
+import { lockCompany } from "@/lib/admin/locking";
+import { ArticleConflictError } from "@/lib/admin/articles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminIdentity } from "@/lib/admin/authz";
@@ -16,12 +18,15 @@ export async function PATCH(request: Request, context: Context) {
     const existing = await prisma.source.findFirst({ where: { id, companyId: actor.companyId } });
     if (!existing) return NextResponse.json({ error: "Source not found." }, { status: 404 });
     const source = await prisma.$transaction(async (tx) => {
+      await lockCompany(tx, actor.companyId);
+      const governed = await tx.articleSource.count({ where: { sourceId: id, article: { OR: [{ status: "PUBLISHED" }, { reviewStatus: { in: ["APPROVED", "IN_REVIEW"] } }] } } });
+      if (governed) throw new ArticleConflictError("Save draft revisions of all reviewed articles before changing their evidence source.");
       const updated = await tx.source.update({ where: { id }, data: parsed.data });
       await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "source.update", entityType: "Source", entityId: id, summary: `Updated source ${updated.title}` } });
       return updated;
     });
     return NextResponse.json({ source });
-  } catch (error) { return adminErrorResponse(error); }
+  } catch (error) { if (error instanceof ArticleConflictError) return NextResponse.json({ error: error.message }, { status: 409 }); return adminErrorResponse(error); }
 }
 
 export async function DELETE(request: Request, context: Context) {
@@ -31,9 +36,11 @@ export async function DELETE(request: Request, context: Context) {
     const source = await prisma.source.findFirst({ where: { id, companyId: actor.companyId }, include: { _count: { select: { articleSources: true } } } });
     if (!source) return NextResponse.json({ error: "Source not found." }, { status: 404 });
     await prisma.$transaction(async (tx) => {
+      await lockCompany(tx, actor.companyId);
+      if (await tx.articleSource.count({ where: { sourceId: id } })) throw new ArticleConflictError("Detach this source from all articles before deleting it.");
       await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "source.delete", entityType: "Source", entityId: id, summary: `Deleted source ${source.title}`, metadata: { detachedArticles: source._count.articleSources } } });
       await tx.source.delete({ where: { id } });
     });
     return NextResponse.json({ ok: true });
-  } catch (error) { return adminErrorResponse(error); }
+  } catch (error) { if (error instanceof ArticleConflictError) return NextResponse.json({ error: error.message }, { status: 409 }); return adminErrorResponse(error); }
 }

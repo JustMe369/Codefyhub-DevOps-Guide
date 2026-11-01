@@ -1,3 +1,5 @@
+import { createChatStream } from "@/lib/ai-stream";
+import { publicCompanyId, publicCompanyWhere } from "@/lib/public-company";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readFileSync } from "fs";
@@ -26,7 +28,7 @@ const RATE_LIMIT_MAX_REQUESTS = 30;
 const FALLBACK_RATE_LIMIT_MAX_KEYS = 10_000;
 let fallbackRateLimitRequests = 0;
 
-async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterMs?: number }> {
+async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterMs?: number; unavailable?: boolean }> {
   if (redis) {
     try {
       const key = `rl:${ip}`;
@@ -35,10 +37,7 @@ async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfte
       const windowEnd = windowStart + RATE_LIMIT_WINDOW_MS;
 
       // Use Redis INCR with expiry for distributed rate limiting
-      const current = await redis.incr(key);
-      if (current === 1) {
-        await redis.expireat(key, Math.ceil(windowEnd / 1000));
-      }
+      const current = await redis.eval<[number], number>(`local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); end; return n`, [key], [Math.max(windowEnd - now, 1)]);
 
       if (current > RATE_LIMIT_MAX_REQUESTS) {
         const ttl = await redis.ttl(key);
@@ -46,13 +45,13 @@ async function checkRateLimit(ip: string): Promise<{ allowed: boolean; retryAfte
       }
       return { allowed: true };
     } catch {
-      if (process.env.NODE_ENV === "production") return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS };
+      if (process.env.NODE_ENV === "production") return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS, unavailable: true };
     }
   }
 
   // Do not silently weaken a distributed production limiter when its service is
   // absent. In development, use a bounded process-local fallback.
-  if (!redis && process.env.NODE_ENV === "production") return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS };
+  if (!redis && process.env.NODE_ENV === "production") return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW_MS, unavailable: true };
 
   // In-memory fallback
   const now = Date.now();
@@ -90,7 +89,8 @@ const MessageSchema = z.object({
 
 async function summarizeConversation(
   messages: Array<{ role: string; content: string }>,
-  model: string
+  model: string,
+  signal: AbortSignal
 ): Promise<string> {
   if (!apiKey) return "";
 
@@ -107,6 +107,7 @@ Summary:`;
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
@@ -282,11 +283,12 @@ function makeReqId(): string {
 
 const EMBEDDING_MODEL = "thenlper/gte-small";
 
-async function embedText(text: string): Promise<number[] | null> {
+async function embedText(text: string, signal: AbortSignal): Promise<number[] | null> {
   if (!apiKey) return null;
   try {
     const response = await fetch("https://openrouter.ai/api/v1/embeddings", {
       method: "POST",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
@@ -330,7 +332,7 @@ async function expandQueryWithGlossary(query: string, companyId?: string): Promi
   try {
     const terms = await prisma.glossaryTerm.findMany({
       where: {
-        ...(companyId ? { companyId } : { company: { isPublic: true, status: "ACTIVE" } }),
+        ...(companyId ? { companyId } : { company: publicCompanyWhere() }),
         term: { contains: query, mode: "insensitive" },
       },
       select: { term: true, definition: true },
@@ -383,7 +385,7 @@ async function semanticSearchArticles(
 
     const accessFilter = companyId
       ? Prisma.sql`a."companyId" = ${companyId} AND a."visibility" IN ('PUBLIC', 'INTERNAL')`
-      : Prisma.sql`a."visibility" = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND c."isPublic" = true AND c."status" = 'ACTIVE'`;
+      : Prisma.sql`a."visibility" = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND c."isPublic" = true AND c."status" = 'ACTIVE' AND c."id" = ${publicCompanyId()}`;
     const rows = await prisma.$queryRaw(Prisma.sql`
       SELECT
         a."id",
@@ -480,7 +482,7 @@ function scoreArticleRelevance(
  * Enhanced RAG: combines keyword search, semantic vector search, query expansion,
  * relevance scoring, and body excerpts.
  */
-async function retrieveRelevantArticles(query: string, limit: number = 3, companyId?: string): Promise<RetrievedArray> {
+async function retrieveRelevantArticles(query: string, limit: number = 3, companyId: string | undefined, signal: AbortSignal): Promise<RetrievedArray> {
   try {
     const queryLower = query.toLowerCase().trim();
     const expandedQueries = await expandQueryWithGlossary(query, companyId);
@@ -493,7 +495,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3, compan
         section: { status: "PUBLISHED" },
         AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }],
         ...(companyId ? {} : { contentType: { not: "WORKFLOW" as const } }),
-        ...(companyId ? { companyId, visibility: { in: ["PUBLIC", "INTERNAL"] as const } } : { visibility: "PUBLIC" as const, company: { isPublic: true, status: "ACTIVE" as const } }),
+        ...(companyId ? { companyId, visibility: { in: ["PUBLIC", "INTERNAL"] as const } } : { visibility: "PUBLIC" as const, company: publicCompanyWhere() }),
         OR: expandedQueries.flatMap((q) => [
           { title: { contains: q, mode: "insensitive" } },
           { description: { contains: q, mode: "insensitive" } },
@@ -523,7 +525,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3, compan
       similarity: number;
     }> = [];
 
-    const queryEmbedding = await embedText(query);
+    const queryEmbedding = await embedText(query, signal);
     if (queryEmbedding) {
       semanticArticles = await semanticSearchArticles(queryEmbedding, 10, companyId);
     }
@@ -553,7 +555,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3, compan
         description: article.description,
         difficulty: article.difficulty,
         readingMinutes: article.readingMinutes,
-        url: companyId ? `/admin/articles/${article.id}` : `/guides/${article.section.slug}/${article.slug}`,
+        url: companyId ? `/portal/knowledge/${article.id}` : `/guides/${article.section.slug}/${article.slug}`,
         bodyExcerpt: article.body ? article.body.slice(0, 300) : null,
         relevanceScore: score,
         matchType,
@@ -584,7 +586,7 @@ async function retrieveRelevantArticles(query: string, limit: number = 3, compan
           description: article.description,
           difficulty: article.difficulty,
           readingMinutes: article.readingMinutes,
-          url: companyId ? `/admin/articles/${article.id}` : `/guides/${article.sectionSlug}/${article.slug}`,
+          url: companyId ? `/portal/knowledge/${article.id}` : `/guides/${article.sectionSlug}/${article.slug}`,
           bodyExcerpt,
           relevanceScore: finalScore,
           matchType,
@@ -678,13 +680,11 @@ async function handleStreamingResponse(
   ip: string,
   startTime: number,
   resolvedLanguage: "en" | "ar",
-  retrievedArticles: RetrievedArray
+  retrievedArticles: RetrievedArray,
+  signal: AbortSignal
 ): Promise<NextResponse | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
-
-  let tokensIn = 0;
-  let tokensOut = 0;
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -704,81 +704,37 @@ async function handleStreamingResponse(
         temperature: 0.3,
         max_tokens: 2000,
         stream: true,
+        stream_options: { include_usage: true },
       }),
-      signal: controller.signal,
+      signal: AbortSignal.any([controller.signal, signal]),
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok || !response.body) {
       const errorText = await response.text();
       log({ reqId, ts: new Date().toISOString(), event: "llm_error", ip, model: candidateModel, error: `HTTP ${response.status}`, details: { detail: errorText.slice(0, 200) } });
+      clearTimeout(timeoutId);
       recordFailure(candidateModel);
       return null;
     }
 
-    const stream = new ReadableStream<string>({
-      async pull(ctrl) {
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop()!;
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data:")) continue;
-
-              const dataStr = trimmed.slice(5).trim();
-              if (dataStr === "[DONE]") {
-                ctrl.enqueue("data: [DONE]\n\n");
-                ctrl.close();
-                return;
-              }
-
-              try {
-                const data = JSON.parse(dataStr);
-                const content = data.choices?.[0]?.delta?.content;
-                if (content) {
-                  ctrl.enqueue(`data: ${JSON.stringify({ content })}\n\n`);
-                }
-                tokensIn = data.usage?.prompt_tokens ?? tokensIn;
-                tokensOut = data.usage?.completion_tokens ?? tokensOut;
-              } catch {
-                // Skip malformed chunks
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-
-        ctrl.close();
+    const stream = createChatStream(response.body, {
+      signal: AbortSignal.any([controller.signal, signal]),
+      abort: () => controller.abort(),
+      complete: async ({ tokensIn, tokensOut }) => {
+        clearTimeout(timeoutId);
+        recordSuccess(candidateModel);
+        const latencyMs = Date.now() - startTime;
+        log({ reqId, ts: new Date().toISOString(), event: "success", ip, model: candidateModel, latencyMs, tokensIn, tokensOut, details: { streaming: true } });
+        await logMetric("success", ip, candidateModel, latencyMs, tokensIn, tokensOut, resolvedLanguage, retrievedArticles.length);
+      },
+      fail: async (error, cancelled) => {
+        clearTimeout(timeoutId);
+        const event = cancelled || (signal.aborted && signal.reason?.name === "AbortError") ? "cancelled" : "failure";
+        if (event === "failure") recordFailure(candidateModel);
+        log({ reqId, ts: new Date().toISOString(), event, ip, model: candidateModel, error: error instanceof Error ? error.message : String(error), latencyMs: Date.now() - startTime });
+        await logMetric(event, ip);
       },
     });
-
-    recordSuccess(candidateModel);
-    const totalLatency = Date.now() - startTime;
-
-    log({
-      reqId,
-      ts: new Date().toISOString(),
-      event: "success",
-      ip,
-      model: candidateModel,
-      latencyMs: totalLatency,
-      tokensIn,
-      tokensOut,
-      details: { articlesRetrieved: retrievedArticles.length, language: resolvedLanguage, streaming: true },
-    });
-    await logMetric("success", ip, candidateModel, totalLatency, tokensIn, tokensOut, resolvedLanguage, retrievedArticles.length);
 
     return new NextResponse(stream, {
       status: 200,
@@ -802,6 +758,16 @@ async function handleStreamingResponse(
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(120_000)]);
+  try { return await handleChatRequest(request, signal); }
+  catch (error) {
+    if (signal.aborted) return NextResponse.json({ error: "The AI request was cancelled or timed out." }, { status: request.signal.aborted ? 499 : 504 });
+    console.error("Chat request failed", error);
+    return NextResponse.json({ error: "The AI service is temporarily unavailable." }, { status: 503 });
+  }
+}
+
+async function handleChatRequest(request: Request, signal: AbortSignal): Promise<NextResponse> {
   const reqId = makeReqId();
   const startTime = Date.now();
   const forwarded = request.headers.get("x-forwarded-for");
@@ -834,8 +800,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     log({ reqId, ts: new Date().toISOString(), event: "rate_limited", ip, details: { retryAfterMs: rate.retryAfterMs } });
     await logMetric("rate_limited", ip);
     return NextResponse.json(
-      { error: "Rate limit exceeded. Try again later." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil((rate.retryAfterMs ?? 0) / 1000)) } }
+      { error: rate.unavailable ? "The AI rate-limit service is unavailable." : "Rate limit exceeded. Try again later." },
+      { status: rate.unavailable ? 503 : 429, headers: { "Retry-After": String(Math.ceil((rate.retryAfterMs ?? 0) / 1000)) } }
     );
   }
 
@@ -878,7 +844,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ── Conversation summarization ───────────────────────────────────────────
   if (effectiveMessages.length > SUMMARIZE_THRESHOLD) {
     const summaryModel = FREE_MODELS[0];
-    const summary = await summarizeConversation(effectiveMessages, summaryModel);
+    const summary = await summarizeConversation(effectiveMessages, summaryModel, signal);
     const recent = effectiveMessages.slice(-KEEP_RECENT_MESSAGES);
     effectiveMessages = [
       { role: "system", content: `CONVERSATION SUMMARY (earlier messages compressed):\n${summary}` },
@@ -895,7 +861,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (userQuery && userQuery.length > 3) {
     const identity = await getAdminIdentity(request.headers).catch(() => null);
     const companyId = identity?.permissions.includes("ai.use") ? identity.companyId : undefined;
-    retrievedArticles = await retrieveRelevantArticles(userQuery, 3, companyId);
+    retrievedArticles = await retrieveRelevantArticles(userQuery, 3, companyId, signal);
   }
 
   // ── Language resolution ──────────────────────────────────────────────────
@@ -922,6 +888,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ── Streaming path ───────────────────────────────────────────────────────
   if (shouldStream) {
     for (const candidateModel of orderedModels) {
+      signal.throwIfAborted();
       const streamResponse = await handleStreamingResponse(
         candidateModel,
         systemPrompt,
@@ -930,7 +897,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         ip,
         startTime,
         resolvedLanguage,
-        retrievedArticles
+        retrievedArticles,
+        signal
       );
       if (streamResponse) {
         return streamResponse;
@@ -957,8 +925,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Retry with exponential backoff (max 2 retries per model)
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30_000);
+        signal.throwIfAborted();
+        const attemptSignal = AbortSignal.any([signal, AbortSignal.timeout(30_000)]);
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
@@ -978,10 +946,8 @@ export async function POST(request: Request): Promise<NextResponse> {
             max_tokens: 2000,
             stream: false,
           }),
-          signal: controller.signal,
+          signal: attemptSignal,
         });
-
-        clearTimeout(timeoutId);
 
         if (response.status === 404 || response.status === 429) {
           const errorText = await response.text();
@@ -1053,7 +1019,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   await logMetric("failure", ip, undefined, totalLatency);
 
   return NextResponse.json(
-    { error: "All available models failed. Last error: " + lastError },
+    { error: "All available models failed. Please try again later." },
     { status: 502 }
   );
 }

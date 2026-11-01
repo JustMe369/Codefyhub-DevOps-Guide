@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
@@ -46,10 +46,42 @@ export function loadSourceArticles(manifestPath: string): SourceArticle[] {
     const key = `${article.section}/${article.slug}`;
     if (seen.has(key)) throw new Error(`Duplicate source article key: ${key}`);
     seen.add(key);
-    const body = readFileSync(resolve(baseDirectory, article.bodyFile), "utf8").trim();
+    const bodyPath = resolve(baseDirectory, article.bodyFile);
+    const localPath = relative(baseDirectory, bodyPath);
+    if (localPath === ".." || localPath.startsWith(`..${sep}`) || resolve(bodyPath) === baseDirectory) throw new Error(`${key}: bodyFile must stay within the manifest directory.`);
+    const body = readFileSync(bodyPath, "utf8").trim();
     if (!body.startsWith("## ")) throw new Error(`${key}: article body must start with an H2 heading.`);
     return { ...article, body };
   });
 }
 
 export const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+export function discoverSourceManifests(directory = resolve(repositoryRoot, "site_content")): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return discoverSourceManifests(path);
+    return entry.isFile() && entry.name === "manifest.json" ? [path] : [];
+  }).sort();
+}
+
+export function loadAllSourceArticles(directory = resolve(repositoryRoot, "site_content")): SourceArticle[] {
+  const manifests = discoverSourceManifests(directory);
+  if (!manifests.length) throw new Error("No source-content manifests were found.");
+  const articles = manifests.flatMap(loadSourceArticles);
+  const keys = articles.map((article) => `${article.section}/${article.slug}`);
+  if (new Set(keys).size !== keys.length) throw new Error("Duplicate source article key across manifests.");
+  const referenced = new Set(manifests.flatMap((path) => {
+    const manifest = manifestSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+    return manifest.articles.map((article) => resolve(dirname(path), article.bodyFile));
+  }));
+  function markdownFiles(path: string): string[] {
+    return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+      const child = resolve(path, entry.name);
+      return entry.isDirectory() ? markdownFiles(child) : entry.isFile() && entry.name.endsWith(".md") ? [child] : [];
+    });
+  }
+  const unlisted = markdownFiles(directory).filter((path) => !referenced.has(path));
+  if (unlisted.length) throw new Error(`Source Markdown is missing from manifests: ${unlisted.map((path) => relative(directory, path)).join(", ")}`);
+  return articles;
+}

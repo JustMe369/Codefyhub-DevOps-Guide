@@ -1,3 +1,4 @@
+import { lockCompany } from "@/lib/admin/locking";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminIdentity } from "@/lib/admin/authz";
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     }
 
     await prisma.$transaction(async (tx) => {
+      await lockCompany(tx, actor.companyId);
       for (const article of articles) {
         if (action === "archive") {
           await tx.article.update({ where: { id: article.id }, data: { status: "ARCHIVED", publishedAt: null } });

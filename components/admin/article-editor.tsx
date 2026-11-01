@@ -217,12 +217,12 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
       const response = await fetch(`/api/admin/articles/${article.id}/${kind}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(kind === "sources" ? { sourceIds } : { tagIds }),
+        body: JSON.stringify(kind === "sources" ? { sourceIds, expectedUpdatedAt: article.updatedAt } : { tagIds }),
       });
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as { error?: string; updatedAt?: string };
       if (!response.ok) setError(result.error ?? `Could not save ${kind}.`);
       else {
-        if (kind === "sources") setSavedSourceIds(sourceIds);
+        if (kind === "sources") { setSavedSourceIds(sourceIds); if (result.updatedAt) setArticle((current) => ({ ...current, updatedAt: result.updatedAt!, reviewStatus: "DRAFT" })); }
         setMessage(`${kind === "sources" ? "Sources" : "Tags"} updated.`);
       }
     } catch {

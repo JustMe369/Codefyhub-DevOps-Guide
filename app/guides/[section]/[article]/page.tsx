@@ -1,3 +1,4 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -15,7 +16,7 @@ type Props = { params: Promise<{ section: string; article: string }> };
 
 async function findPublishedArticle(sectionSlug: string, articleSlug: string) {
   return prisma.article.findFirst({
-    where: { slug: articleSlug, section: { slug: sectionSlug, status: "PUBLISHED" }, status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: { isPublic: true, status: "ACTIVE" } },
+    where: { slug: articleSlug, section: { slug: sectionSlug, status: "PUBLISHED" }, status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: publicCompanyWhere() },
     include: { section: true, articleSources: { include: { source: true } }, articleTags: { include: { tag: true } } }
   });
 }

@@ -16,7 +16,7 @@ export default async function AdminOverviewPage() {
     prisma.article.count({ where: { companyId: actor.companyId, reviewStatus: "IN_REVIEW" } }),
     prisma.article.count({ where: { companyId: actor.companyId, status: "PUBLISHED", lastVerifiedAt: { lt: staleBefore } } }),
     prisma.article.count({ where: { companyId: actor.companyId, status: "PUBLISHED", expiresAt: { gt: now, lte: expiresSoon } } }),
-    prisma.auditEvent.findMany({ where: { companyId: actor.companyId }, orderBy: { createdAt: "desc" }, take: 10 }),
+    actor.permissions.includes("audit.view") ? prisma.auditEvent.findMany({ where: { companyId: actor.companyId }, orderBy: { createdAt: "desc" }, take: 10 }) : Promise.resolve([]),
   ]);
   const count = (status: string) => statusGroups.find((group) => group.status === status)?._count._all ?? 0;
 

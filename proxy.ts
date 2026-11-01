@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isTrustedMutationOrigin } from "@/lib/request-security";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, clientRateLimitKey } from "@/lib/rate-limit";
 
 const ADMIN_RATE_LIMIT = 60;
 const ADMIN_RATE_WINDOW_MS = 60_000;
 
-function getRateLimitKey(request: NextRequest): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) return forwardedFor.split(",")[0].trim();
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
-  return `random:${crypto.randomUUID()}`;
-}
-
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/api/admin/")) {
@@ -25,12 +17,12 @@ export function proxy(request: NextRequest) {
 
     const isOverviewRead = pathname === "/api/admin/overview" && request.method === "GET";
     if (!isOverviewRead) {
-      const { ok, retryAfterMs } = rateLimit(getRateLimitKey(request), ADMIN_RATE_LIMIT, ADMIN_RATE_WINDOW_MS);
+      const { ok, retryAfterMs, unavailable } = await rateLimit(clientRateLimitKey(request), ADMIN_RATE_LIMIT, ADMIN_RATE_WINDOW_MS);
       if (!ok) {
         const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
         return NextResponse.json(
-          { error: "Too many requests. Please try again later.", retryAfter: retryAfterSeconds },
-          { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
+          { error: unavailable ? "Request protection is temporarily unavailable." : "Too many requests. Please try again later.", retryAfter: retryAfterSeconds },
+          { status: unavailable ? 503 : 429, headers: { "Retry-After": String(retryAfterSeconds) } },
         );
       }
     }

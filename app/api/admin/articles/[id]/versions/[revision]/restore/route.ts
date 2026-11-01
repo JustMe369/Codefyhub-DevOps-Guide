@@ -1,3 +1,4 @@
+import { lockArticle } from "@/lib/admin/locking";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { ArticleConflictError, invalidateArticleEmbedding } from "@/lib/admin/articles";
@@ -29,6 +30,7 @@ export async function POST(request: Request, context: Context) {
     const revision = Number(revisionParam);
     if (!Number.isInteger(revision) || revision < 1) return NextResponse.json({ error: "Invalid revision." }, { status: 400 });
     const article = await prisma.$transaction(async (tx) => {
+      await lockArticle(tx, id, actor.companyId);
       const [current, source] = await Promise.all([
         tx.article.findFirst({ where: { id, companyId: actor.companyId }, include: { versions: { orderBy: { revision: "desc" }, take: 1 }, section: { select: { slug: true } } } }),
         tx.articleVersion.findUnique({ where: { articleId_revision: { articleId: id, revision } } }),
@@ -41,7 +43,7 @@ export async function POST(request: Request, context: Context) {
         if (!section) throw new ArticleConflictError("The revision references a section outside this company.");
       }
       const restored = await tx.article.update({
-        where: { id },
+        where: { id, companyId: actor.companyId, updatedAt: current.updatedAt },
         data: {
           body: source.body,
           status: "DRAFT",

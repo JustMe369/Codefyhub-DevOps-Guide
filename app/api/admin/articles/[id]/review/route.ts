@@ -1,3 +1,6 @@
+import { editorialIssues } from "@/lib/content/editorial";
+import { ArticleConflictError } from "@/lib/admin/articles";
+import { lockArticle } from "@/lib/admin/locking";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminIdentity } from "@/lib/admin/authz";
@@ -20,9 +23,14 @@ export async function POST(request: Request, context: Context) {
     const actor = await requireAdminIdentity(request.headers, permission);
     const { id } = await context.params;
     const article = await prisma.$transaction(async (tx) => {
+      await lockArticle(tx, id, actor.companyId);
       const current = await tx.article.findFirst({ where: { id, companyId: actor.companyId }, include: { articleSources: { select: { sourceId: true } }, section: { select: { slug: true } } } });
       if (!current) return null;
       if (current.updatedAt.getTime() !== parsed.data.expectedUpdatedAt.getTime()) throw new Error("The article changed since this review action was prepared. Refresh and try again.");
+      if (parsed.data.action !== "request_changes") {
+        const issues = editorialIssues(current);
+        if (issues.length) throw new ArticleConflictError(issues.join(" "));
+      }
       if (parsed.data.action === "submit") {
         if (current.status !== "DRAFT") throw new Error("Only draft articles can be submitted for review.");
         if (current.reviewStatus === "IN_REVIEW" || current.reviewStatus === "APPROVED") throw new Error("This article is already in review or approved.");
@@ -44,6 +52,7 @@ export async function POST(request: Request, context: Context) {
     if (!article) return NextResponse.json({ error: "Article not found." }, { status: 404 });
     return NextResponse.json({ article });
   } catch (error) {
+    if (error instanceof ArticleConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
     if (error instanceof Error && (error.message.startsWith("Source review") || error.message.startsWith("Only ") || error.message.startsWith("The article changed"))) return NextResponse.json({ error: error.message }, { status: 409 });
     return adminErrorResponse(error);
   }

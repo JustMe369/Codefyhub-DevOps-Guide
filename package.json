@@ -14,6 +14,7 @@
     "content:links": "tsx scripts/check-source-links.ts",
     "content:internal-links": "tsx scripts/check-internal-links.ts",
     "search:check": "tsx scripts/check-search.ts",
+    "search:plan": "tsx scripts/check-search-plan.ts",
     "search:embed": "tsx scripts/embed-articles.ts",
     "secrets:check": "tsx scripts/check-secrets.ts",
     "tenant:check": "tsx scripts/check-tenant-integrity.ts",

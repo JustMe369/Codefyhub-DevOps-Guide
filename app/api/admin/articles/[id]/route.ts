@@ -1,3 +1,5 @@
+import { lockArticle } from "@/lib/admin/locking";
+import { canReadEditorialKnowledge } from "@/lib/knowledge-access";
 import { NextResponse } from "next/server";
 import { updateArticleSchema } from "@/lib/admin/article-schema";
 import { ArticleConflictError, updateArticle } from "@/lib/admin/articles";
@@ -17,7 +19,7 @@ export async function GET(request: Request, context: Context) {
       where: { id, ...articleAccessWhere(actor) },
       include: {
         section: true,
-        versions: { orderBy: { revision: "desc" }, take: 20, include: { createdBy: { select: { name: true, email: true } } } },
+        versions: canReadEditorialKnowledge(actor) ? { orderBy: { revision: "desc" }, take: 20, include: { createdBy: { select: { name: true, email: true } } } } : false,
         articleSources: { include: { source: true } },
         articleTags: { include: { tag: true } },
       },
@@ -55,12 +57,14 @@ export async function DELETE(request: Request, context: Context) {
       if (!actor.isPlatformAdmin) return NextResponse.json({ error: "Only a platform administrator can permanently delete knowledge." }, { status: 403 });
       if (parsed.confirmTitle !== article.title) return NextResponse.json({ error: "The confirmation title does not match." }, { status: 400 });
       await prisma.$transaction(async (tx) => {
+        await lockArticle(tx, id, actor.companyId);
         await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "article.delete", entityType: "Article", entityId: id, summary: `Permanently deleted article ${article.title}` } });
         await tx.article.delete({ where: { id } });
       });
       return NextResponse.json({ ok: true, permanent: true });
     }
     const archived = await prisma.$transaction(async (tx) => {
+      await lockArticle(tx, id, actor.companyId);
       const updated = await tx.article.update({ where: { id }, data: { status: "ARCHIVED", publishedAt: null } });
       await tx.auditEvent.create({ data: { companyId: actor.companyId, actorId: actor.id, actorEmail: actor.email, action: "article.archive", entityType: "Article", entityId: id, summary: `Archived article ${article.title}` } });
       return updated;

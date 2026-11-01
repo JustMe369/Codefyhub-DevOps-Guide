@@ -121,6 +121,7 @@ model Article {
   title               String
   description         String
   body                String                      @db.Text
+  searchDocument      Unsupported("tsvector") @default(dbgenerated("''::tsvector"))
   embedding           Unsupported("vector(384)")?
   embeddingRevision   Int?
   embeddingModel      String?
@@ -235,6 +236,7 @@ model ArticleTag {
 }
 
 model GlossaryTerm {
+  searchDocument   Unsupported("tsvector") @default(dbgenerated())
   id               String   @id @default(cuid())
   companyId        String   @default("codefyhub-company")
   company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -460,4 +462,12 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

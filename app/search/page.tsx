@@ -1,3 +1,4 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { z } from "zod";
@@ -17,7 +18,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const parsed = searchSchema.parse({ q: first(params.q) ?? "", section: first(params.section), type: first(params.type), difficulty: first(params.difficulty) });
   const results = await searchKnowledge(parsed.q, { section: parsed.section, contentType: parsed.type, difficulty: parsed.difficulty });
-  const sections = await prisma.section.findMany({ where: { status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } }, orderBy: { order: "asc" }, select: { slug: true, title: true } });
+  const sections = await prisma.section.findMany({ where: { status: "PUBLISHED", company: publicCompanyWhere() }, orderBy: { order: "asc" }, select: { slug: true, title: true } });
 
   return (
     <div className="shell search-page">

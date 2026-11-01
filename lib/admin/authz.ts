@@ -1,4 +1,5 @@
 import "server-only";
+import { editorialArticleWhere, canReadRestrictedKnowledge } from "@/lib/knowledge-access";
 import { getAuth } from "@/lib/auth";
 import { permissionKeys, type PermissionKey } from "@/lib/admin/permissions";
 import { prisma } from "@/lib/prisma";
@@ -92,13 +93,10 @@ export async function requireAdminIdentity(requestHeaders: Headers, permission?:
 }
 
 export function articleAccessWhere(identity: AdminIdentity) {
-  const canReadRestricted = canAccessRestrictedKnowledge(identity);
-  return { companyId: identity.companyId, ...(canReadRestricted ? {} : { visibility: { not: "RESTRICTED" as const } }) };
+  return editorialArticleWhere(identity);
 }
 
-export function canAccessRestrictedKnowledge(identity: AdminIdentity) {
-  return identity.isPlatformAdmin || ["content.edit", "content.review", "content.publish"].some((permission) => identity.permissions.includes(permission));
-}
+export const canAccessRestrictedKnowledge = canReadRestrictedKnowledge;
 
 export async function listAvailableCompanies(identity: AdminIdentity) {
   if (identity.isPlatformAdmin) {

@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { createHash } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Difficulty, ContentType, ValidationStatus } from "../generated/prisma/client";
-import { loadSourceArticles, repositoryRoot } from "../lib/content/source-content";
+import { loadAllSourceArticles } from "../lib/content/source-content";
 import { decideSourceSync } from "../lib/content/source-sync";
 import { additionalArticles, additionalSections } from "./additional-content";
 import { knowledgeExpansionArticles, knowledgeExpansionGlossary } from "./knowledge-expansion";
@@ -17,10 +17,7 @@ const verificationValue = process.env.CONTENT_VERIFIED_AT ?? "2026-10-26";
 const verified = new Date(`${verificationValue}T00:00:00.000Z`);
 const reverifyExisting = process.env.CONTENT_REVERIFY === "true";
 const verifiedBy = process.env.CONTENT_VERIFIED_BY ?? "Codefyhub Editorial Team";
-const sourceContent = [
-  ...loadSourceArticles(`${repositoryRoot}/site_content/storage-raid/manifest.json`),
-  ...loadSourceArticles(`${repositoryRoot}/site_content/devops-department/manifest.json`),
-];
+const sourceContent = loadAllSourceArticles();
 if (Number.isNaN(verified.valueOf())) throw new Error("CONTENT_VERIFIED_AT must use YYYY-MM-DD format.");
 const md = (...lines: string[]) => lines.join("\n");
 const sourceHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");

@@ -1,3 +1,4 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 
@@ -11,7 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const sections = await prisma.section.findMany({
       where: {
         status: "PUBLISHED",
-        company: { isPublic: true, status: "ACTIVE" },
+        company: publicCompanyWhere(),
         articles: {
           some: {
             status: "PUBLISHED",
@@ -25,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true },
     });
     const articles = await prisma.article.findMany({ 
-      where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: { isPublic: true, status: "ACTIVE" }, section: { status: "PUBLISHED" } },
+      where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }], company: publicCompanyWhere(), section: { status: "PUBLISHED" } },
       include: { section: true } 
     });
     

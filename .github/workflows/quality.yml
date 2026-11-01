@@ -27,6 +27,7 @@ jobs:
       NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3100
       ADMIN_BOOTSTRAP_EMAIL: e2e-admin@codefyhub.local
       ADMIN_BOOTSTRAP_PASSWORD: test-only-e2e-admin-password-not-for-reuse
+      AUDIT_E2E: "1"
       MEMBER_TEST_EMAIL: e2e-member@codefyhub.local
       MEMBER_TEST_PASSWORD: test-only-e2e-member-password-not-for-reuse
     steps:
@@ -46,6 +47,7 @@ jobs:
       - run: npm run content:check
       - run: npm run content:internal-links
       - run: npm run search:check
+      - run: npm run search:plan
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

@@ -1,3 +1,4 @@
+import { lockArticle } from "@/lib/admin/locking";
 import { NextResponse } from "next/server";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { adminErrorResponse } from "@/lib/admin/http";
@@ -12,6 +13,7 @@ export async function POST(request: Request, context: Context) {
     const actor = await requireAdminIdentity(request.headers, "content.edit");
     const { id } = await context.params;
     const article = await prisma.$transaction(async (tx) => {
+      await lockArticle(tx, id, actor.companyId);
       const current = await tx.article.findFirst({
         where: { id, companyId: actor.companyId },
         include: { section: { select: { slug: true } } },

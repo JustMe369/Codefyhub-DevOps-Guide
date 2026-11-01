@@ -1,9 +1,6 @@
-import { loadSourceArticles, repositoryRoot } from "../lib/content/source-content";
+import { loadAllSourceArticles } from "../lib/content/source-content";
 
-const articles = [
-  ...loadSourceArticles(`${repositoryRoot}/site_content/storage-raid/manifest.json`),
-  ...loadSourceArticles(`${repositoryRoot}/site_content/devops-department/manifest.json`),
-];
+const articles = loadAllSourceArticles();
 const errors: string[] = [];
 const requiredByType: Record<string, RegExp[]> = {
   HOW_TO: [/^## Objective and scenario$/m, /^## Applicability and limitations$/m, /^## Prerequisites(?:\s+.*)?$/m, /^## Verification checklist$/m, /^## Troubleshooting$/m, /^## Rollback and recovery$/m],
@@ -22,4 +19,4 @@ for (const article of articles) {
 }
 
 if (errors.length) { errors.forEach((error) => console.error(`ERROR ${error}`)); process.exitCode = 1; }
-else console.log(`Validated ${articles.length} source-authored vertical-slice articles.`);
+else console.log(`Validated ${articles.length} source-authored articles (all discovered manifests; no unlisted Markdown).`);

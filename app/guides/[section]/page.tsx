@@ -1,3 +1,4 @@
+import { publicCompanyWhere } from "@/lib/public-company";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -8,7 +9,7 @@ type Props = { params: Promise<{ section: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { section: slug } = await params;
-  const section = await prisma.section.findFirst({ where: { slug, status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } }, select: { title: true, summary: true, slug: true } });
+  const section = await prisma.section.findFirst({ where: { slug, status: "PUBLISHED", company: publicCompanyWhere() }, select: { title: true, summary: true, slug: true } });
   if (!section) return {};
   const url = `/guides/${section.slug}`;
   return { title: section.title, description: section.summary, alternates: { canonical: url }, openGraph: { title: section.title, description: section.summary, url } };
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SectionPage({ params }: Props) {
   const { section: slug } = await params;
   const section = await prisma.section.findFirst({
-    where: { slug, status: "PUBLISHED", company: { isPublic: true, status: "ACTIVE" } },
+    where: { slug, status: "PUBLISHED", company: publicCompanyWhere() },
     include: { articles: { where: { status: "PUBLISHED", reviewStatus: "APPROVED", visibility: "PUBLIC", contentType: { not: "WORKFLOW" }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { order: "asc" } } }
   });
   if (!section) notFound();

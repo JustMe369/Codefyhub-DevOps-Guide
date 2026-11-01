@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { canReadEditorialKnowledge } from "@/lib/knowledge-access";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ArticleEditor } from "@/components/admin/article-editor";
 import { RevisionHistory } from "@/components/admin/revision-history";
@@ -10,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 export default async function AdminArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actor = await requireAdminIdentity(await headers(), "content.view");
+  if (!canReadEditorialKnowledge(actor)) redirect(`/portal/knowledge/${id}`);
   const [article, sections, sources, tags] = await Promise.all([
     prisma.article.findFirst({ where: { id, ...articleAccessWhere(actor) }, include: { articleSources: true, articleTags: true, versions: { orderBy: { revision: "desc" }, take: 30, include: { createdBy: { select: { name: true, email: true } } } } } }),
     prisma.section.findMany({ where: { companyId: actor.companyId }, orderBy: { order: "asc" }, select: { id: true, title: true } }),

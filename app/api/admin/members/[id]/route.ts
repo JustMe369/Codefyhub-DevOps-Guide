@@ -1,3 +1,5 @@
+import { lockCompany } from "@/lib/admin/locking";
+import { ArticleConflictError } from "@/lib/admin/articles";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminIdentity } from "@/lib/admin/authz";
@@ -24,12 +26,14 @@ export async function PATCH(request: Request, context: Context) {
     if (!actor.isPlatformAdmin && nextRole.permissions.some(({ permissionId }) => !actor.permissions.includes(permissionId))) {
       return NextResponse.json({ error: "You cannot assign a role broader than your own access." }, { status: 403 });
     }
-    const removesOwner = membership.role.slug === "company-owner" && (nextRole.slug !== "company-owner" || parsed.data.status !== "ACTIVE");
-    if (removesOwner) {
-      const otherOwners = await prisma.membership.count({ where: { companyId: membership.companyId, id: { not: id }, status: "ACTIVE", role: { slug: "company-owner" } } });
-      if (otherOwners === 0) return NextResponse.json({ error: "The last active company owner cannot be removed or suspended." }, { status: 409 });
-    }
     const updated = await prisma.$transaction(async (tx) => {
+      await lockCompany(tx, membership.companyId);
+      const current = await tx.membership.findUnique({ where: { id }, include: { role: true } });
+      if (!current) throw new ArticleConflictError("Membership changed. Refresh and try again.");
+      const removesOwner = current.status === "ACTIVE" && current.role.slug === "company-owner" && (nextRole.slug !== "company-owner" || parsed.data.status !== "ACTIVE");
+      if (removesOwner && await tx.membership.count({ where: { companyId: membership.companyId, id: { not: id }, status: "ACTIVE", role: { slug: "company-owner" } } }) === 0) {
+        throw new ArticleConflictError("The last active company owner cannot be removed or suspended.");
+      }
       const row = await tx.membership.update({ where: { id }, data: { roleId: nextRole.id, status: parsed.data.status, accessVersion: { increment: 1 } } });
       await tx.session.deleteMany({ where: { userId: membership.userId } });
       await tx.auditEvent.create({
@@ -39,6 +43,7 @@ export async function PATCH(request: Request, context: Context) {
     });
     return NextResponse.json({ membership: updated });
   } catch (error) {
+    if (error instanceof ArticleConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
     return adminErrorResponse(error);
   }
 }
@@ -50,17 +55,20 @@ export async function DELETE(request: Request, context: Context) {
     const membership = await prisma.membership.findUnique({ where: { id }, include: { role: true, user: true } });
     if (!membership || (!actor.isPlatformAdmin && membership.companyId !== actor.companyId)) return NextResponse.json({ error: "Membership not found." }, { status: 404 });
     if (membership.userId === actor.id) return NextResponse.json({ error: "You cannot remove your own company access." }, { status: 409 });
-    if (membership.role.slug === "company-owner") {
-      const otherOwners = await prisma.membership.count({ where: { companyId: membership.companyId, id: { not: id }, status: "ACTIVE", role: { slug: "company-owner" } } });
-      if (otherOwners === 0) return NextResponse.json({ error: "The final active company owner cannot be removed." }, { status: 409 });
-    }
     await prisma.$transaction(async (tx) => {
+      await lockCompany(tx, membership.companyId);
+      const current = await tx.membership.findUnique({ where: { id }, include: { role: true } });
+      if (!current) throw new ArticleConflictError("Membership changed. Refresh and try again.");
+      if (current.status === "ACTIVE" && current.role.slug === "company-owner" && await tx.membership.count({ where: { companyId: membership.companyId, id: { not: id }, status: "ACTIVE", role: { slug: "company-owner" } } }) === 0) {
+        throw new ArticleConflictError("The last active company owner cannot be removed.");
+      }
       await tx.auditEvent.create({ data: { companyId: membership.companyId, actorId: actor.id, actorEmail: actor.email, action: "member.delete", entityType: "Membership", entityId: id, summary: `Removed ${membership.user.email} from the company`, metadata: { role: membership.role.slug } } });
       await tx.membership.delete({ where: { id } });
       await tx.session.deleteMany({ where: { userId: membership.userId } });
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ArticleConflictError) return NextResponse.json({ error: error.message }, { status: 409 });
     return adminErrorResponse(error);
   }
 }

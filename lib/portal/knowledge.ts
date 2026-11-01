@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import { readerVisibilityValues } from "@/lib/admin/article-schema";
-import { getAdminIdentity, canAccessRestrictedKnowledge, type AdminIdentity } from "@/lib/admin/authz";
+import { readerArticleWhere } from "@/lib/knowledge-access";
+import { getAdminIdentity, type AdminIdentity } from "@/lib/admin/authz";
 
 export const portalContentTypes = ["WORKFLOW", "FAQ", "ISSUE_SOLUTION", "POLICY", "HOW_TO", "RUNBOOK", "REFERENCE"] as const;
 export type PortalContentType = (typeof portalContentTypes)[number];
@@ -27,15 +27,7 @@ export async function getPortalIdentity(requestHeaders: Headers) {
 }
 
 export function portalArticleWhere(identity: AdminIdentity, now = new Date()): Prisma.ArticleWhereInput {
-  const where: Prisma.ArticleWhereInput = {
-    companyId: identity.companyId,
-    status: "PUBLISHED",
-    reviewStatus: "APPROVED",
-    visibility: canAccessRestrictedKnowledge(identity) ? { in: [...readerVisibilityValues] } : { in: ["PUBLIC", "INTERNAL"] },
-    section: { status: "PUBLISHED" },
-    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-  };
-  return where;
+  return readerArticleWhere(identity, now);
 }
 
 export function contentTypeLabel(value: string) {

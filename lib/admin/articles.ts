@@ -1,3 +1,5 @@
+import { editorialIssues } from "@/lib/content/editorial";
+import { lockArticle } from "@/lib/admin/locking";
 import type { AdminIdentity } from "@/lib/admin/authz";
 import type { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
@@ -116,6 +118,7 @@ export async function createArticle(input: CreateArticleInput, actor: AdminIdent
 
 export async function updateArticle(id: string, input: UpdateArticleInput, actor: AdminIdentity) {
   return prisma.$transaction(async (tx) => {
+    await lockArticle(tx, id, actor.companyId);
     const current = await tx.article.findFirst({
       where: { id, companyId: actor.companyId },
       include: { versions: { orderBy: { revision: "desc" }, take: 1 }, section: { select: { slug: true } } },
@@ -128,7 +131,7 @@ export async function updateArticle(id: string, input: UpdateArticleInput, actor
     }
 
     const article = await tx.article.update({
-      where: { id },
+      where: { id, companyId: actor.companyId, updatedAt: current.updatedAt },
       data: {
         ...input.data,
         status: "DRAFT",
@@ -172,6 +175,7 @@ export async function updateArticle(id: string, input: UpdateArticleInput, actor
 
 export async function publishArticle(id: string, expectedUpdatedAt: Date, actor: AdminIdentity) {
   return prisma.$transaction(async (tx) => {
+    await lockArticle(tx, id, actor.companyId);
     const current = await tx.article.findFirst({
       where: { id, companyId: actor.companyId },
       include: { articleSources: { select: { sourceId: true } }, section: { select: { slug: true } } },
@@ -181,10 +185,13 @@ export async function publishArticle(id: string, expectedUpdatedAt: Date, actor:
     if (current.validationStatus === "DRAFT") throw new ArticleConflictError("Source review is required before publication.");
     if (current.articleSources.length === 0) throw new ArticleConflictError("At least one source is required before publication.");
     if (current.reviewStatus !== "APPROVED") throw new ArticleConflictError("An approved knowledge review is required before publication.");
+    const issues = editorialIssues(current);
+    if (issues.length) throw new ArticleConflictError(issues.join(" "));
+    if (current.expiresAt && current.expiresAt <= new Date()) throw new ArticleConflictError("Choose a future expiry before publication.");
     if (current.visibility === "DRAFT") throw new ArticleConflictError("Choose a reader visibility before publication. Draft visibility hides this article from readers.");
 
     const article = await tx.article.update({
-      where: { id },
+      where: { id, companyId: actor.companyId, updatedAt: current.updatedAt },
       data: { status: "PUBLISHED", publishedAt: current.publishedAt ?? new Date() },
     });
     await tx.auditEvent.create({

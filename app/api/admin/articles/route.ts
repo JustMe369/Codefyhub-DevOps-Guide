@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: "Invalid article filters.", issues: parsed.error.flatten() }, { status: 400 });
     const { q, status, section, page, limit } = parsed.data;
     const where = {
-      ...articleAccessWhere(actor),
+      AND: [articleAccessWhere(actor)],
       ...(status ? { status } : {}),
       ...(section ? { section: { slug: section } } : {}),
       ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { slug: { contains: q, mode: "insensitive" as const } }] } : {}),

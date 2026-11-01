@@ -1,3 +1,4 @@
+import { publicCompanyId } from "@/lib/public-company";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -19,14 +20,11 @@ export async function searchKnowledge(query: string, filters: SearchFilters = {}
       SELECT websearch_to_tsquery('english', ${query}) || websearch_to_tsquery('simple', ${query}) AS value
     ), article_documents AS (
       SELECT a.*, s.slug AS "sectionSlug", s.title AS "sectionTitle",
-        setweight(to_tsvector('english', a.title), 'A') || setweight(to_tsvector('simple', a.title), 'A') ||
-        setweight(to_tsvector('english', a.description), 'B') || setweight(to_tsvector('simple', a.description), 'B') ||
-        setweight(to_tsvector('english', a.body), 'C') || setweight(to_tsvector('simple', a.body), 'C') ||
-        setweight(to_tsvector('simple', coalesce((SELECT string_agg(t.name, ' ') FROM "ArticleTag" at JOIN "Tag" t ON t.id = at."tagId" WHERE at."articleId" = a.id), '')), 'B') AS document
+        a."searchDocument" AS document
       FROM "Article" a
       JOIN "Section" s ON s.id = a."sectionId"
       JOIN "Company" c ON c.id = a."companyId"
-      WHERE a.status = 'PUBLISHED' AND a."reviewStatus" = 'APPROVED' AND a.visibility = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND (a."expiresAt" IS NULL OR a."expiresAt" > CURRENT_TIMESTAMP) AND s.status = 'PUBLISHED' AND c."isPublic" = true AND c.status = 'ACTIVE'
+      WHERE a.status = 'PUBLISHED' AND a."reviewStatus" = 'APPROVED' AND a.visibility = 'PUBLIC' AND a."contentType" <> 'WORKFLOW' AND (a."expiresAt" IS NULL OR a."expiresAt" > CURRENT_TIMESTAMP) AND s.status = 'PUBLISHED' AND c."isPublic" = true AND c.status = 'ACTIVE' AND c.id = ${publicCompanyId()}
     )
     SELECT * FROM (
       SELECT a.id, a.title, a.description, a.slug AS "articleSlug", a."sectionSlug", a."sectionTitle",
@@ -40,13 +38,13 @@ export async function searchKnowledge(query: string, filters: SearchFilters = {}
         AND (CAST(${difficulty} AS text) IS NULL OR a.difficulty::text = CAST(${difficulty} AS text))
       UNION ALL
       SELECT g.id, g.term, g.definition, '', '', 'Glossary',
-        ts_rank_cd(to_tsvector('english', g.term || ' ' || g.definition) || to_tsvector('simple', g.term || ' ' || g.definition), q.value),
+        ts_rank_cd(g."searchDocument", q.value),
         'glossary'::text,
         replace(replace(ts_headline('simple', g.definition, q.value, 'MaxFragments=1, MaxWords=28, MinWords=10'), '<b>', ''), '</b>', ''),
         'REFERENCE'::text, 'FOUNDATION'::text
       FROM "GlossaryTerm" g JOIN "Company" c ON c.id = g."companyId" CROSS JOIN search_query q
-      WHERE (to_tsvector('english', g.term || ' ' || g.definition) || to_tsvector('simple', g.term || ' ' || g.definition)) @@ q.value
-        AND c."isPublic" = true AND c.status = 'ACTIVE'
+      WHERE (g."searchDocument") @@ q.value
+        AND c."isPublic" = true AND c.status = 'ACTIVE' AND c.id = ${publicCompanyId()}
         AND CAST(${section} AS text) IS NULL AND CAST(${contentType} AS text) IS NULL AND CAST(${difficulty} AS text) IS NULL
     ) results ORDER BY rank DESC, title ASC LIMIT ${limit}
   `);
@@ -60,9 +58,7 @@ export async function searchCompanyKnowledge(query: string, companyId: string, i
       SELECT websearch_to_tsquery('english', ${query}) || websearch_to_tsquery('simple', ${query}) AS value
     ), article_documents AS (
       SELECT a.*, s.slug AS "sectionSlug", s.title AS "sectionTitle",
-        setweight(to_tsvector('english', a.title), 'A') || setweight(to_tsvector('simple', a.title), 'A') ||
-        setweight(to_tsvector('english', a.description), 'B') || setweight(to_tsvector('simple', a.description), 'B') ||
-        setweight(to_tsvector('english', a.body), 'C') || setweight(to_tsvector('simple', a.body), 'C') AS document
+        a."searchDocument" AS document
       FROM "Article" a
       JOIN "Section" s ON s.id = a."sectionId"
       WHERE a."companyId" = ${companyId}
@@ -81,13 +77,13 @@ export async function searchCompanyKnowledge(query: string, companyId: string, i
       FROM article_documents a CROSS JOIN search_query q WHERE a.document @@ q.value
       UNION ALL
       SELECT g.id, g.term, g.definition, '', '', 'Glossary',
-        ts_rank_cd(to_tsvector('english', g.term || ' ' || g.definition) || to_tsvector('simple', g.term || ' ' || g.definition), q.value),
+        ts_rank_cd(g."searchDocument", q.value),
         'glossary'::text,
         replace(replace(ts_headline('simple', g.definition, q.value, 'MaxFragments=1, MaxWords=28, MinWords=10'), '<b>', ''), '</b>', ''),
         'REFERENCE'::text, 'FOUNDATION'::text
       FROM "GlossaryTerm" g CROSS JOIN search_query q
       WHERE g."companyId" = ${companyId}
-        AND (to_tsvector('english', g.term || ' ' || g.definition) || to_tsvector('simple', g.term || ' ' || g.definition)) @@ q.value
+        AND (g."searchDocument") @@ q.value
     ) results ORDER BY rank DESC, title ASC LIMIT ${boundedLimit}
   `);
 }
