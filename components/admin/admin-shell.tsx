@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpenText, Building2, FilePlus2, FolderTree, Gauge, LibraryBig, LogOut, Search, ScrollText, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
+import { BookOpenText, Building2, FilePlus2, FolderTree, Gauge, LibraryBig, LogOut, Navigation, Search, ScrollText, ShieldCheck, Sparkles, UserCog, Users } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import type { AdminIdentity } from "@/lib/admin/authz";
 
@@ -12,6 +12,7 @@ const navigation = [
   { href: "/admin/articles", label: "Articles", icon: BookOpenText, permission: "content.view" },
   { href: "/admin/sources", label: "Sources", icon: LibraryBig, permission: "sources.manage" },
   { href: "/admin/taxonomy", label: "Structure", icon: FolderTree, permission: "structure.manage" },
+  { href: "/admin/navigation", label: "Header menu", icon: Navigation, permission: "structure.manage", platformOnly: true },
   { href: "/admin/studio", label: "Studio", icon: Sparkles, permission: "content.view" },
   { href: "/admin/search", label: "Knowledge search", icon: Search, permission: "content.view" },
   { href: "/admin/knowledge-gaps", label: "Knowledge gaps", icon: LibraryBig, permission: "content.review" },
@@ -43,7 +44,7 @@ export function AdminShell({ identity, companies, children }: { identity: AdminI
     if (response.ok) router.refresh();
   }
 
-  const visibleNavigation = navigation.filter((item) => !item.permission || identity.permissions.includes(item.permission));
+  const visibleNavigation = navigation.filter((item) => (!item.permission || identity.permissions.includes(item.permission)) && (!item.platformOnly || identity.isPlatformAdmin));
 
   return (
     <div className="admin-shell">

@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { Footer } from "@/components/footer";
 import { AIChat } from "@/components/ai-chat";
+import { getHeaderMenuItems } from "@/lib/site-navigation-data";
 
 const publicUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
 
@@ -20,7 +21,8 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const [requestHeaders, menuItems] = await Promise.all([headers(), getHeaderMenuItems()]);
+  const nonce = requestHeaders.get("x-nonce") ?? undefined;
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
@@ -28,7 +30,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body>
         <a className="skip-link" href="#main-content">Skip to main content</a>
-        <SiteHeader />
+        <SiteHeader menuItems={menuItems} />
         <main id="main-content">{children}</main>
         <Footer />
         <AIChat />

@@ -6,6 +6,7 @@ import { ArrowUpRight, BookOpenCheck, Menu, Moon, Search, Sun, X } from "lucide-
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import type { HeaderMenuItem } from "@/lib/site-navigation";
 
 type QuickResult = { id: string; title: string; articleSlug: string; sectionSlug: string; sectionTitle: string; kind: "article" | "glossary"; contentType: string };
 
@@ -24,7 +25,7 @@ function getServerThemeSnapshot(): "dark" | "light" {
   return "dark";
 }
 
-export function SiteHeader() {
+export function SiteHeader({ menuItems }: { menuItems: HeaderMenuItem[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -106,12 +107,7 @@ export function SiteHeader() {
         </Link>
         <button className="header-icon menu-toggle" type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-controls="primary-navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
         <nav id="primary-navigation" className={`main-nav${menuOpen ? " open" : ""}`} aria-label="Primary navigation">
-          <Link onClick={closeMenu} href="/guides/start-here">Guides</Link>
-          <Link onClick={closeMenu} href="/configurations">Configs</Link>
-          <Link onClick={closeMenu} href="/exam">Exam</Link>
-          <Link onClick={closeMenu} href="/glossary">Glossary</Link>
-          <Link onClick={closeMenu} href="/checklist">Readiness</Link>
-          <Link onClick={closeMenu} className="portal-nav-link" href="/portal"><BookOpenCheck size={15} /> Company Portal <ArrowUpRight size={13} /></Link>
+          {menuItems.filter((item) => item.visible).map((item) => <Link onClick={closeMenu} className={item.featured ? "portal-nav-link" : undefined} href={item.href} target={item.newTab ? "_blank" : undefined} rel={item.newTab ? "noopener noreferrer" : undefined} key={item.id}>{item.featured && <BookOpenCheck size={15} />}{item.label}{item.newTab || item.featured ? <ArrowUpRight size={13} /> : null}</Link>)}
         </nav>
         <div className="header-tools"><button className="header-icon theme-toggle" type="button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={toggleTheme}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button>
         <form className="search-form" action="/search" method="get" role="search">

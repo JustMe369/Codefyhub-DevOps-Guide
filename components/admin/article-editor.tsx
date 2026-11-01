@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, FileUp, Link2, Save, Send, Tags, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileUp, Link2, Save, Send, Sparkles, Tags, Trash2, WandSparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { completeWorkflowDraft, workflowCompletionIssues } from "@/lib/admin/workflow-completion";
 
 type EditableArticle = {
   id: string;
@@ -48,6 +49,7 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
   const router = useRouter();
   const [article, setArticle] = useState(initialArticle);
   const [sourceIds, setSourceIds] = useState(initialSourceIds);
+  const [savedSourceIds, setSavedSourceIds] = useState(initialSourceIds);
   const [tagIds, setTagIds] = useState(initialTagIds);
   const [changeSummary, setChangeSummary] = useState("");
   const [pending, setPending] = useState(false);
@@ -56,6 +58,30 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
 
   function setField<K extends keyof EditableArticle>(key: K, value: EditableArticle[K]) {
     setArticle((current) => ({ ...current, [key]: value }));
+  }
+
+  function completeMissingWorkflowFields() {
+    const result = completeWorkflowDraft(article);
+    setArticle((current) => ({ ...current, ...result.article }));
+    if (result.completed.length > 0) {
+      setChangeSummary(`Completed workflow metadata: ${result.completed.join(", ")}`.slice(0, 240));
+      setMessage(`Completed ${result.completed.length} field${result.completed.length === 1 ? "" : "s"}. Review the suggested values, then save the revision.`);
+    } else {
+      setChangeSummary((current) => current || "Reviewed workflow metadata and content");
+      setMessage("Required workflow fields are complete. Save the revision when you are ready.");
+    }
+    setError(null);
+  }
+
+  function confirmSourceReview() {
+    if (savedSourceIds.length === 0) {
+      setError("Attach and save at least one evidence source before confirming source review.");
+      return;
+    }
+    setField("validationStatus", "SOURCE_REVIEWED");
+    setChangeSummary((current) => current || "Completed technical source review for workflow");
+    setMessage("Source review marked complete in the editor. Save the revision to record it.");
+    setError(null);
   }
 
   async function importMarkdown(file: File | undefined) {
@@ -82,7 +108,8 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         return;
       }
       setField("body", body);
-      setMessage(`Loaded ${file.name}. Add a change summary and save the revision to keep it.`);
+      setChangeSummary(`Imported workflow Markdown from ${file.name}`.slice(0, 240));
+      setMessage(`Loaded ${file.name}. Use Complete missing fields, review the suggestions, then save the revision.`);
     } catch {
       setError("The selected Markdown file could not be read.");
     }
@@ -98,7 +125,7 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         expectedUpdatedAt: article.updatedAt,
-        changeSummary,
+        changeSummary: changeSummary.trim() || (article.contentType === "WORKFLOW" ? "Updated workflow draft and metadata" : "Updated article draft and metadata"),
         data: {
           sectionId: article.sectionId,
           slug: article.slug,
@@ -126,8 +153,11 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         },
       }),
     });
-    const result = (await response.json()) as { article?: EditableArticle; error?: string };
-    if (!response.ok || !result.article) setError(result.error ?? "Save failed.");
+    const result = (await response.json()) as { article?: EditableArticle; error?: string; issues?: { formErrors?: string[]; fieldErrors?: Record<string, string[]> } };
+    if (!response.ok || !result.article) {
+      const fieldIssue = Object.entries(result.issues?.fieldErrors ?? {}).flatMap(([field, messages]) => messages.map((issue) => `${field}: ${issue}`))[0];
+      setError(fieldIssue ?? result.issues?.formErrors?.[0] ?? result.error ?? "Save failed.");
+    }
     else {
       setArticle((current) => ({ ...current, ...result.article! }));
       setChangeSummary("");
@@ -189,7 +219,10 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) setError(result.error ?? `Could not save ${kind}.`);
-      else setMessage(`${kind === "sources" ? "Sources" : "Tags"} updated.`);
+      else {
+        if (kind === "sources") setSavedSourceIds(sourceIds);
+        setMessage(`${kind === "sources" ? "Sources" : "Tags"} updated.`);
+      }
     } catch {
       setError(`The ${kind} request could not reach the server.`);
     } finally {
@@ -222,7 +255,19 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         </div>
       </section>
       <aside className="admin-panel admin-editor-meta">
-        <div className="admin-status-line"><span className={`admin-status ${article.status.toLowerCase()}`}>{article.status}</span><span>{sourceIds.length} source{sourceIds.length === 1 ? "" : "s"}</span></div>
+        <div className="admin-status-line"><span className={`admin-status ${article.status.toLowerCase()}`}>{article.status}</span><span>{savedSourceIds.length} saved source{savedSourceIds.length === 1 ? "" : "s"}</span></div>
+        {article.contentType === "WORKFLOW" && (() => {
+          const issues = workflowCompletionIssues(article);
+          const score = Math.max(0, Math.round(((10 - issues.length) / 10) * 100));
+          return <section className="workflow-completion-assistant" aria-label="Workflow completion assistant">
+            <div className="workflow-assistant-heading"><span><WandSparkles size={17} /><strong>Workflow assistant</strong></span><b>{score}% complete</b></div>
+            <div className="workflow-completion-bar" role="progressbar" aria-label="Required workflow fields completed" aria-valuemin={0} aria-valuemax={100} aria-valuenow={score}><span style={{ width: `${score}%` }} /></div>
+            {issues.length > 0 ? <><p><AlertTriangle size={15} /> {issues.length} required field{issues.length === 1 ? "" : "s"} need attention.</p><ul>{issues.slice(0, 4).map((issue) => <li key={issue}>{issue}</li>)}</ul></> : <p className="workflow-assistant-ready"><CheckCircle2 size={15} /> Required fields are ready to save.</p>}
+            <button type="button" className="workflow-assistant-primary" onClick={completeMissingWorkflowFields} disabled={pending}><Sparkles size={15} /> Complete missing fields</button>
+            {article.validationStatus === "DRAFT" && <button type="button" onClick={confirmSourceReview} disabled={pending || savedSourceIds.length === 0}><CheckCircle2 size={15} /> I completed source review</button>}
+            <small>The assistant derives metadata but never claims testing, review, or approval without your confirmation.</small>
+          </section>;
+        })()}
         <label>Section<select value={article.sectionId} onChange={(event) => setField("sectionId", event.target.value)}>{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select></label>
         <label>Slug<input value={article.slug} onChange={(event) => setField("slug", event.target.value)} /></label>
         <label>Content type<select value={article.contentType} onChange={(event) => setField("contentType", event.target.value as EditableArticle["contentType"])}>{["CONCEPT", "HOW_TO", "RUNBOOK", "REFERENCE", "CONFIGURATION_RECIPE", "LEARNING_PATH", "FAQ", "WORKFLOW", "ISSUE_SOLUTION", "POLICY"].map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
@@ -241,16 +286,16 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
         <label>Verification method<textarea rows={3} value={article.verificationMethod} onChange={(event) => setField("verificationMethod", event.target.value)} /></label>
         <label>Tested versions<textarea rows={3} value={article.testedVersions} onChange={(event) => setField("testedVersions", event.target.value)} /></label>
         <label>Last verified<input type="date" value={article.lastVerifiedAt.slice(0, 10)} onChange={(event) => setField("lastVerifiedAt", new Date(`${event.target.value}T00:00:00.000Z`).toISOString())} /></label>
-        <fieldset className="admin-selector"><legend><Link2 size={15} /> Sources</legend>{sources.map((source) => <label key={source.id}><input type="checkbox" checked={sourceIds.includes(source.id)} onChange={() => setSourceIds((current) => current.includes(source.id) ? current.filter((id) => id !== source.id) : [...current, source.id])} /> {source.organization}: {source.title}</label>)}<button type="button" onClick={() => saveRelationships("sources")} disabled={pending}>Save sources</button></fieldset>
+        <fieldset className="admin-selector"><legend><Link2 size={15} /> Sources</legend>{sources.map((source) => <label key={source.id}><input type="checkbox" checked={sourceIds.includes(source.id)} onChange={() => setSourceIds((current) => current.includes(source.id) ? current.filter((id) => id !== source.id) : [...current, source.id])} /> {source.organization}: {source.title}</label>)}<button type="button" onClick={() => saveRelationships("sources")} disabled={pending}>Save {sourceIds.length} selected source{sourceIds.length === 1 ? "" : "s"}</button></fieldset>
         <fieldset className="admin-selector"><legend><Tags size={15} /> Tags</legend>{tags.map((tag) => <label key={tag.id}><input type="checkbox" checked={tagIds.includes(tag.id)} onChange={() => setTagIds((current) => current.includes(tag.id) ? current.filter((id) => id !== tag.id) : [...current, tag.id])} /> {tag.name}</label>)}<button type="button" onClick={() => saveRelationships("tags")} disabled={pending}>Save tags</button></fieldset>
-        <label>Change summary<input value={changeSummary} onChange={(event) => setChangeSummary(event.target.value)} placeholder="What changed and why" /></label>
+        <label>Change summary <small>(optional)</small><input value={changeSummary} onChange={(event) => setChangeSummary(event.target.value)} placeholder="Generated automatically if left blank" /></label>
         {message && <p className="admin-success"><CheckCircle2 size={16} /> {message}</p>}
         {error && <p className="admin-error" role="alert">{error}</p>}
         <section className="editor-publish-readiness" aria-label="Publication readiness">
           <div><strong>Publication readiness</strong><span>{article.status === "PUBLISHED" ? "Live" : "Checklist"}</span></div>
           <ul>
             <li className={article.validationStatus !== "DRAFT" ? "ready" : ""}><CheckCircle2 size={14} /> Technical source review complete</li>
-            <li className={sourceIds.length > 0 ? "ready" : ""}><CheckCircle2 size={14} /> Evidence source attached</li>
+            <li className={savedSourceIds.length > 0 ? "ready" : ""}><CheckCircle2 size={14} /> Evidence source attached and saved</li>
             <li className={article.reviewStatus === "APPROVED" ? "ready" : ""}><CheckCircle2 size={14} /> Independent review approved</li>
             <li className={article.visibility !== "DRAFT" ? "ready" : ""}><CheckCircle2 size={14} /> Reader visibility configured</li>
             <li className={canPublish ? "ready" : ""}><CheckCircle2 size={14} /> Publish permission available</li>
@@ -258,10 +303,10 @@ export function ArticleEditor({ initialArticle, sections, sources, tags, initial
           {article.contentType === "WORKFLOW" && <p>Workflows publish to the Company Portal. Set visibility to Selected workspace or Restricted; Draft visibility hides them from readers.</p>}
         </section>
         <div className="admin-editor-actions">
-          <button type="button" onClick={save} disabled={pending || changeSummary.trim().length < 3}><Save size={16} /> Save revision</button>
-          {article.reviewStatus !== "IN_REVIEW" && article.reviewStatus !== "APPROVED" && <button type="button" onClick={() => review("submit")} disabled={pending || article.validationStatus === "DRAFT" || sourceIds.length === 0}><Send size={16} /> Submit review</button>}
+          <button type="button" onClick={save} disabled={pending}><Save size={16} /> Save revision</button>
+          {article.reviewStatus !== "IN_REVIEW" && article.reviewStatus !== "APPROVED" && <button type="button" onClick={() => review("submit")} disabled={pending || article.validationStatus === "DRAFT" || savedSourceIds.length === 0}><Send size={16} /> Submit review</button>}
           {canReview && article.reviewStatus === "IN_REVIEW" && <><button type="button" onClick={() => review("request_changes")} disabled={pending}>Request changes</button><button type="button" onClick={() => review("approve")} disabled={pending}>Approve</button></>}
-          {canPublish && <button type="button" className="admin-primary-button" onClick={publish} disabled={pending || article.reviewStatus !== "APPROVED" || article.validationStatus === "DRAFT" || sourceIds.length === 0 || article.visibility === "DRAFT"}><Send size={16} /> Publish</button>}
+          {canPublish && <button type="button" className="admin-primary-button" onClick={publish} disabled={pending || article.reviewStatus !== "APPROVED" || article.validationStatus === "DRAFT" || savedSourceIds.length === 0 || article.visibility === "DRAFT"}><Send size={16} /> Publish</button>}
           <button type="button" className="admin-danger-button" onClick={() => removeArticle(false)} disabled={pending}><Trash2 size={16} /> Archive</button>
           {isPlatformAdmin && <button type="button" className="admin-danger-button" onClick={() => removeArticle(true)} disabled={pending}><Trash2 size={16} /> Delete permanently</button>}
         </div>

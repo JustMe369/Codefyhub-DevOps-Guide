@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { FilePlus2, FolderTree, Settings2, Users } from "lucide-react";
+import { FilePlus2, FolderTree, Navigation, Settings2, Users } from "lucide-react";
 import { requireAdminIdentity } from "@/lib/admin/authz";
 import { prisma } from "@/lib/prisma";
 
@@ -36,6 +36,7 @@ export default async function AdminOverviewPage() {
       <section className="admin-control-grid" aria-label="Administration shortcuts">
         {actor.permissions.includes("content.create") && <Link href="/admin/articles/new"><FilePlus2 size={20} /><span><strong>Create knowledge</strong><small>FAQ, issue solution, or policy</small></span></Link>}
         {actor.permissions.includes("structure.manage") && <Link href="/admin/taxonomy"><FolderTree size={20} /><span><strong>Manage structure</strong><small>Sections, navigation, and tags</small></span></Link>}
+        {actor.isPlatformAdmin && actor.permissions.includes("structure.manage") && <Link href="/admin/navigation"><Navigation size={20} /><span><strong>Header navigation</strong><small>Order, show, hide, and feature menu links</small></span></Link>}
         {actor.permissions.includes("members.view") && <Link href="/admin/members"><Users size={20} /><span><strong>Manage access</strong><small>Members, invitations, and company roles</small></span></Link>}
         {actor.isPlatformAdmin && <Link href="/admin/users"><Settings2 size={20} /><span><strong>Platform controls</strong><small>Administrator email, users, and suspension</small></span></Link>}
       </section>
